@@ -1,6 +1,10 @@
 
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { toast } from "sonner";
+import axios from "axios";
+import { useNavigate } from "react-router-dom";
+
+const baseUrl = import.meta.env.VITE_BASE_URL;
 
 type User = {
   id: string;
@@ -19,33 +23,33 @@ type AuthContextType = {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Mock user data for demonstration
-const MOCK_USERS = [
-  {
-    id: "1",
-    name: "Admin User",
-    email: "admin@hkotisk.com",
-    password: "password123",
-    role: "admin" as const,
-  },
-  {
-    id: "2",
-    name: "Staff User",
-    email: "staff@hkotisk.com",
-    password: "password123",
-    role: "staff" as const,
-  },
-];
-
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const navigate = useNavigate();
+
+  // Set up axios interceptor for authentication
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (token) {
+      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+    }
+    return () => {
+      delete axios.defaults.headers.common['Authorization'];
+    };
+  }, []);
 
   useEffect(() => {
-    // Check for saved user in localStorage
-    const savedUser = localStorage.getItem("hkotiskUser");
-    if (savedUser) {
-      setUser(JSON.parse(savedUser));
+    const token = localStorage.getItem('token');
+    const role = localStorage.getItem('role');
+    if (token && role) {
+      const parsedRole = JSON.parse(role);
+      setUser({
+        id: '1',  // We'll use a placeholder ID since it's not provided in the token
+        name: 'Staff User',  // Placeholder name
+        email: '',  // Email not available from token
+        role: parsedRole
+      });
     }
     setIsLoading(false);
   }, []);
@@ -54,24 +58,37 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setIsLoading(true);
 
     try {
-      // Simulate API call delay
-      await new Promise((resolve) => setTimeout(resolve, 800));
-
-      const foundUser = MOCK_USERS.find(
-        (u) => u.email === email && u.password === password
+      const response = await axios.post(`${baseUrl}/auth/signin`, 
+        { email, password },
+        {
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        }
       );
-
-      if (!foundUser) {
-        throw new Error("Invalid credentials");
-      }
-
-      const { password: _, ...userWithoutPassword } = foundUser;
-      setUser(userWithoutPassword);
-      localStorage.setItem("hkotiskUser", JSON.stringify(userWithoutPassword));
-      toast.success(`Welcome back, ${userWithoutPassword.name}!`);
       
+      if (response.data.token) {
+        const token = response.data.token;
+        localStorage.setItem('token', token);
+        localStorage.setItem('role', JSON.stringify(response.data.role));
+        axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+        
+        setUser({
+          id: '1',  // Placeholder ID
+          name: 'Staff User',  // Placeholder name
+          email: email,
+          role: response.data.role
+        });
+
+        toast.success('Login successful!');
+        
+        if (response.data.role === 'staff' || response.data.role === 'admin') {
+          navigate('/staff/dashboard');
+        }
+      }
     } catch (error) {
-      toast.error("Login failed. Please check your credentials.");
+      console.error('Login failed:', error);
+      toast.error('Login failed. Please check your credentials.');
       throw error;
     } finally {
       setIsLoading(false);
@@ -80,8 +97,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const logout = () => {
     setUser(null);
-    localStorage.removeItem("hkotiskUser");
+    localStorage.removeItem('token');
+    localStorage.removeItem('role');
+    delete axios.defaults.headers.common['Authorization'];
     toast.info("You've been logged out");
+    navigate('/staff/login');
   };
 
   return (

@@ -68,7 +68,7 @@ const ProductManagement = () => {
       }
 
       // Filter by category
-      if (selectedCategory) {
+      if (selectedCategory && selectedCategory !== 'all') {
         filtered = filtered.filter(
           (product) => product.category === selectedCategory
         );
@@ -150,7 +150,7 @@ const ProductManagement = () => {
                   <SelectValue placeholder="All Categories" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All Categories</SelectItem>
+                  <SelectItem value="all">All Categories</SelectItem>
                   {categories.map((category) => (
                     <SelectItem key={category} value={category}>
                       {category}
@@ -259,7 +259,11 @@ const ProductManagement = () => {
                           <Badge variant="outline">{product.category}</Badge>
                         </TableCell>
                         <TableCell className="text-right font-medium">
-                          ${product.price.toFixed(2)}
+                          {product.prices.length > 1 ? (
+                            <>From ${Math.min(...product.prices).toFixed(2)}</>
+                          ) : (
+                            <>${product.prices[0].toFixed(2)}</>
+                          )}
                         </TableCell>
                         <TableCell className="text-right">
                           <span

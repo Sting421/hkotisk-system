@@ -1,26 +1,71 @@
-
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { toast } from "sonner";
+import axios from "axios";
+import { useNavigate } from "react-router-dom";
+
+const baseUrl = import.meta.env.VITE_BASE_URL;
+
+export type ProductFormData = {
+  id?: string;
+  name: string;
+  description: string;
+  prices: number[];
+  sizes: string[];
+  quantity: number[];
+  category: string;
+  imageUrl: string;
+};
 
 export type Product = {
   id: string;
   name: string;
   description: string;
-  price: number;
+  prices: number[];
+  sizes: string[];
+  quantity: number[];
   category: string;
   imageUrl: string;
+  createdAt?: string;
+  updatedAt?: string;
   stockLevel: number;
   lowStockThreshold: number;
-  createdAt: string;
-  updatedAt: string;
 };
+
+type ApiProduct = {
+  productId: number;
+  productName: string;
+  description: string;
+  prices: number[];
+  sizes: string[];
+  quantity: number[];
+  category: string;
+  productImage: string;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+// Transform API response to match our Product type
+const transformApiResponse = (data: ApiProduct): Product => ({
+  id: data.productId?.toString() || '',
+  name: data.productName || '',
+  description: data.description || '',
+  prices: data.prices || [],
+  sizes: data.sizes || [],
+  quantity: data.quantity || [],
+  category: data.category || '',
+  imageUrl: data.productImage || '',
+  createdAt: data.createdAt,
+  updatedAt: data.updatedAt,
+  stockLevel: data.quantity.reduce((sum, qty) => sum + qty, 0),
+  lowStockThreshold: 10 // Default threshold, can be adjusted as needed
+});
 
 type ProductContextType = {
   products: Product[];
   isLoading: boolean;
-  addProduct: (product: Omit<Product, "id" | "createdAt" | "updatedAt">) => void;
-  updateProduct: (id: string, product: Partial<Omit<Product, "id" | "createdAt" | "updatedAt">>) => void;
-  deleteProduct: (id: string) => void;
+  addProduct: (product: ProductFormData) => Promise<void>;
+  updateProduct: (productData: ProductFormData) => Promise<void>;
+  deleteProduct: (id: string) => Promise<void>;
   getLowStockProducts: () => Product[];
   getProductById: (id: string) => Product | undefined;
   filterProducts: (
@@ -34,141 +79,132 @@ type ProductContextType = {
   ) => Product[];
 };
 
-// Sample product data
-const INITIAL_PRODUCTS: Product[] = [
-  {
-    id: "1",
-    name: "Notebook",
-    description: "High-quality notebook for students",
-    price: 5.99,
-    category: "Stationery",
-    imageUrl: "https://images.unsplash.com/photo-1517842645767-c639042777db?q=80&w=500",
-    stockLevel: 120,
-    lowStockThreshold: 20,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: "2",
-    name: "Scientific Calculator",
-    description: "Advanced calculator for math and science classes",
-    price: 19.99,
-    category: "Electronics",
-    imageUrl: "https://images.unsplash.com/photo-1564939558297-fc396f18e5c7?q=80&w=500",
-    stockLevel: 45,
-    lowStockThreshold: 10,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: "3",
-    name: "Water Bottle",
-    description: "Reusable BPA-free water bottle",
-    price: 12.50,
-    category: "Accessories",
-    imageUrl: "https://images.unsplash.com/photo-1602143407151-7111542de6e8?q=80&w=500",
-    stockLevel: 8,
-    lowStockThreshold: 15,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: "4",
-    name: "Backpack",
-    description: "Durable backpack with multiple compartments",
-    price: 34.99,
-    category: "Accessories",
-    imageUrl: "https://images.unsplash.com/photo-1553062407-98eeb64c6a62?q=80&w=500",
-    stockLevel: 25,
-    lowStockThreshold: 10,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: "5",
-    name: "Wireless Earbuds",
-    description: "Bluetooth earbuds with noise cancellation",
-    price: 49.99,
-    category: "Electronics",
-    imageUrl: "https://images.unsplash.com/photo-1606220588913-b3aacb4d2f37?q=80&w=500",
-    stockLevel: 15,
-    lowStockThreshold: 5,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-];
-
 const ProductContext = createContext<ProductContextType | undefined>(undefined);
 
 export const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  useEffect(() => {
-    // Simulate loading products from an API
-    const loadProducts = async () => {
-      setIsLoading(true);
-      try {
-        // Simulate a delay
-        await new Promise(resolve => setTimeout(resolve, 800));
-        
-        // Check if we have products in localStorage
-        const savedProducts = localStorage.getItem("hkotiskProducts");
-        if (savedProducts) {
-          setProducts(JSON.parse(savedProducts));
-        } else {
-          // Use initial sample data
-          setProducts(INITIAL_PRODUCTS);
-          localStorage.setItem("hkotiskProducts", JSON.stringify(INITIAL_PRODUCTS));
-        }
-      } catch (error) {
-        console.error("Failed to load products:", error);
-        toast.error("Failed to load products. Please try again later.");
-      } finally {
-        setIsLoading(false);
+  const navigate = useNavigate();
+
+  const fetchProducts = async (authToken: string) => {
+    setIsLoading(true);
+    try {
+      const response = await axios.get(`${baseUrl}/user/product`, {
+        headers: {
+          Authorization: `Bearer ${authToken}`,
+          'Content-Type': 'application/json',
+        },
+      });
+      const productList = response?.data?.oblist || response?.data || [];
+      setProducts(productList.map(transformApiResponse));
+    } catch (error) {
+      console.error('Error fetching products:', error);
+      if (error.response?.status === 403) {
+        localStorage.removeItem('token');
+        navigate('/staff/login');
       }
-    };
-
-    loadProducts();
-  }, []);
-
-  // Save products to localStorage whenever they change
-  useEffect(() => {
-    if (products.length > 0) {
-      localStorage.setItem("hkotiskProducts", JSON.stringify(products));
+      toast.error("Failed to load products. Please try again later.");
+    } finally {
+      setIsLoading(false);
     }
-  }, [products]);
-
-  const addProduct = (product: Omit<Product, "id" | "createdAt" | "updatedAt">) => {
-    const newProduct: Product = {
-      ...product,
-      id: Date.now().toString(),
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
-
-    setProducts(prev => [...prev, newProduct]);
-    toast.success(`Product "${product.name}" added successfully`);
   };
 
-  const updateProduct = (id: string, productUpdate: Partial<Omit<Product, "id" | "createdAt" | "updatedAt">>) => {
-    setProducts(prev => 
-      prev.map(product => 
-        product.id === id 
-          ? { 
-              ...product, 
-              ...productUpdate, 
-              updatedAt: new Date().toISOString() 
-            } 
-          : product
-      )
-    );
-    toast.success("Product updated successfully");
+  useEffect(() => {
+    const authToken = localStorage.getItem('token');
+    if (!authToken) {
+      setIsLoading(false);
+      navigate('/staff/login');
+      return;
+    }
+    fetchProducts(authToken);
+  }, [navigate]);
+
+  const addProduct = async (product: ProductFormData) => {
+    const authToken = localStorage.getItem('token');
+    if (!authToken) {
+        navigate('/staff/login');
+      return;
+    }
+
+    try {
+      await axios.post(`${baseUrl}/staff/product`, product, {
+        headers: {
+          Authorization: `Bearer ${authToken}`,
+          'Content-Type': 'application/json',
+        },
+      });
+      fetchProducts(authToken);
+      toast.success(`Product "${product.name}" added successfully`);
+    } catch (error) {
+      console.error('Error adding product:', error);
+      if (error?.response?.status === 403) {
+        localStorage.removeItem('token');
+        localStorage.removeItem('role');
+        navigate('/staff/login');
+      }
+      toast.error("Failed to add product. Please try again.");
+    }
   };
 
-  const deleteProduct = (id: string) => {
-    setProducts(prev => prev.filter(product => product.id !== id));
-    toast.success("Product deleted successfully");
+  const updateProduct = async (productData: ProductFormData) => {
+    const authToken = localStorage.getItem('token');
+    if (!authToken) {
+      navigate('/staff/login');
+      return;
+    }
+
+    try {
+      const response = await axios.put(`${baseUrl}/staff/product`, productData, {
+        headers: {
+          Authorization: `Bearer ${authToken}`,
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      if (response.status === 200) {
+        await fetchProducts(authToken);
+        toast.success("Product updated successfully");
+        navigate('/staff/products');
+      }
+    } catch (error) {
+      console.error('Error updating product:', error);
+      if (error?.response?.status === 403) {
+        localStorage.removeItem('token');
+        localStorage.removeItem('role');
+        navigate('/staff/login');
+      }
+      toast.error("Failed to update product. Please try again.");
+    }
+  };
+
+  const deleteProduct = async (id: string) => {
+    const authToken = localStorage.getItem('token');
+    if (!authToken) {
+      navigate('/staff/login');
+      return;
+    }
+
+    try {
+      await axios.delete(`${baseUrl}/staff/product`, {
+        headers: {
+          Authorization: `Bearer ${authToken}`,
+          'Content-Type': 'application/json',
+        },
+        params: {
+          productId: id
+        }
+      });
+      fetchProducts(authToken);
+      toast.success("Product deleted successfully");
+    } catch (error) {
+      console.error('Error deleting product:', error);
+      if (error.response?.status === 403) {
+        localStorage.removeItem('token');
+        navigate('/staff/login');
+      }
+      toast.error("Failed to delete product. Please try again.");
+    }
   };
 
   const getLowStockProducts = () => {
@@ -197,10 +233,11 @@ export const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ child
       }
       
       // Filter by price range
-      if (filters.minPrice !== undefined && product.price < filters.minPrice) {
+      const minProductPrice = Math.min(...product.prices);
+      if (filters.minPrice !== undefined && minProductPrice < filters.minPrice) {
         return false;
       }
-      if (filters.maxPrice !== undefined && product.price > filters.maxPrice) {
+      if (filters.maxPrice !== undefined && minProductPrice > filters.maxPrice) {
         return false;
       }
       

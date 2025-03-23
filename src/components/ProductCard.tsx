@@ -40,8 +40,8 @@ export const ProductCard: React.FC<ProductCardProps> = ({
           </div>
         ) : isLowStock ? (
           <Badge 
-            variant="warning" 
-            className="absolute top-3 right-3 bg-amber-400 text-amber-900 hover:bg-amber-400"
+            variant="outline" 
+            className="absolute top-3 right-3 bg-amber-400 text-amber-900 hover:bg-amber-400/90"
           >
             Low Stock
           </Badge>
@@ -61,7 +61,11 @@ export const ProductCard: React.FC<ProductCardProps> = ({
         </p>
         <div className="flex justify-between items-center">
           <p className="font-semibold text-hko-text-primary">
-            ${product.price.toFixed(2)}
+            {product.prices.length > 1 ? (
+              <>From ${Math.min(...product.prices).toFixed(2)}</>
+            ) : (
+              <>${product.prices[0].toFixed(2)}</>
+            )}
           </p>
           {isAuthenticated && (
             <p className="text-xs text-hko-text-muted">

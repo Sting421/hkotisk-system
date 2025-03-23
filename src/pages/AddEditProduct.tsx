@@ -1,5 +1,6 @@
 
 import React, { useState, useEffect } from "react";
+import { Product, ProductFormData } from "@/contexts/ProductContext";
 import { Navbar } from "@/components/Navbar";
 import { ProductForm } from "@/components/ProductForm";
 import { useAuth } from "@/contexts/AuthContext";
@@ -13,7 +14,7 @@ const AddEditProduct = () => {
   const { getProductById, addProduct, updateProduct, isLoading } = useProducts();
   const navigate = useNavigate();
   const { id } = useParams();
-  const [product, setProduct] = useState(null);
+  const [product, setProduct] = useState<Product | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const isEditMode = !!id;
@@ -38,18 +39,34 @@ const AddEditProduct = () => {
     }
   }, [id, isLoading, getProductById, navigate, isEditMode]);
 
-  const handleSubmit = async (data) => {
+  const handleSubmit = async (formData: Partial<Product>) => {
     setIsSubmitting(true);
     try {
-      // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 800));
-
-      if (isEditMode) {
-        updateProduct(id, data);
-      } else {
-        addProduct(data);
+      if (isEditMode && id && formData.name && formData.description && formData.prices && formData.sizes && formData.quantity && formData.category && formData.imageUrl) {
+        const productData: ProductFormData = {
+          id,
+          name: formData.name,
+          description: formData.description,
+          prices: formData.prices,
+          sizes: formData.sizes,
+          quantity: formData.quantity,
+          category: formData.category,
+          imageUrl: formData.imageUrl
+        };
+        await updateProduct(productData);
+      } else if (formData.name && formData.description && formData.prices && formData.sizes && formData.quantity && formData.category && formData.imageUrl) {
+        const productData: ProductFormData = {
+          name: formData.name,
+          description: formData.description,
+          prices: formData.prices,
+          sizes: formData.sizes,
+          quantity: formData.quantity,
+          category: formData.category,
+          imageUrl: formData.imageUrl
+        };
+        await addProduct(productData);
+        navigate("/staff/products");
       }
-      navigate("/staff/products");
     } catch (error) {
       console.error("Error saving product:", error);
     } finally {

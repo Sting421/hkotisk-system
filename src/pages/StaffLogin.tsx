@@ -116,11 +116,11 @@ const StaffLogin = () => {
             </Form>
 
             <div className="mt-6 pt-4 border-t border-hko-border">
-              <FormDescription className="text-center text-xs">
+              <div className="text-center text-xs text-muted-foreground">
                 Demo credentials:<br />
                 Email: admin@hkotisk.com<br />
                 Password: password123
-              </FormDescription>
+              </div>
             </div>
           </div>
         </div>

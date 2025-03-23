@@ -1,69 +1,138 @@
-# Welcome to your Lovable project
+# HKOTISK System Frontend
 
-## Project info
+A management system frontend built with React, TypeScript, and shadcn/ui for Hong Kong Tea Ordering and Stock Information System (HKOTISK).
 
-**URL**: https://lovable.dev/projects/3a0e4389-afb1-41ee-ba7d-8f17ff5e70a3
+## Features
 
-## How can I edit this code?
+- **User Roles**:
+  - Staff: Manage products, monitor inventory, and handle orders
+  - Students: Browse products, manage cart, and place orders
 
-There are several ways of editing your application.
+- **Product Management**:
+  - Add, edit, and delete products
+  - Real-time inventory tracking
+  - Stock alerts and monitoring
 
-**Use Lovable**
+- **Order System**:
+  - Cart management
+  - Order processing
+  - Order status tracking
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/3a0e4389-afb1-41ee-ba7d-8f17ff5e70a3) and start prompting.
+- **Staff Dashboard**:
+  - Inventory monitoring
+  - Order management interface
+  - Sales analytics
 
-Changes made via Lovable will be committed automatically to this repo.
+## Prerequisites
 
-**Use your preferred IDE**
+Before you begin, ensure you have the following installed:
+- Node.js (LTS version recommended)
+- npm (comes with Node.js)
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+Additionally, you'll need:
+- Access to the HKOTISK backend API
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+## Getting Started
 
-Follow these steps:
+Follow these steps to set up the project locally:
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+1. Create a `.env` file in the project root with:
+```env
+VITE_BASE_URL=your_backend_api_url   # Example: http://localhost:8080/api
+```
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+```bash
+# Clone the repository
+git clone https://github.com/hkotisk/hkotisk-system.git
 
-# Step 3: Install the necessary dependencies.
-npm i
+# Navigate to the project directory
+cd hkotisk-system
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
+# Install dependencies
+npm install
+
+# Start the development server
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+The development server will start at `http://localhost:5173` by default.
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+## Available Scripts
 
-**Use GitHub Codespaces**
+- `npm run dev` - Starts the development server
+- `npm run build` - Creates a production build
+- `npm run build:dev` - Creates a development build
+- `npm run preview` - Previews the production build locally
+- `npm run lint` - Runs ESLint to check code quality
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+## API Integration
 
-## What technologies are used for this project?
+The frontend communicates with the backend API using authenticated endpoints. Key features include:
 
-This project is built with .
+- **Authentication**: Uses Bearer token authentication
+- **Cart Management**: Fetches and updates user cart data
+- **Product Management**: Handles product listing and updates
+- **Order Management**: Manages order processing and tracking
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+Example API usage:
+```typescript
+// Fetching products with authentication handling
+const fetchProducts = async (authToken) => {
+  try {
+    const response = await axios.get(`${baseUrl}/user/product`, {
+      headers: {
+        Authorization: `Bearer ${authToken}`,
+        'Content-Type': 'application/json',
+      },
+    });
+    return response?.data?.oblist || response?.data || [];
+  } catch (error) {
+    console.error('Error fetching products:', error);
+    // Handle authentication errors
+    if (error.response?.status === 403) {
+      sessionStorage.removeItem('token');
+      // Redirect to login page
+    }
+    throw error;
+  }
+};
 
-## How can I deploy this project?
+// Fetching cart data
+const fetchCart = async (authToken) => {
+  try {
+    const response = await axios.get(`${baseUrl}/user/cart`, {
+      headers: { Authorization: `Bearer ${authToken}` },
+    });
+    return response.data.oblist;
+  } catch (error) {
+    console.error('Error fetching cart:', error);
+    throw error;
+  }
+};
+```
 
-Simply open [Lovable](https://lovable.dev/projects/3a0e4389-afb1-41ee-ba7d-8f17ff5e70a3) and click on Share -> Publish.
+**Note**: All API requests require authentication. If a token expires or becomes invalid, the system will automatically redirect to the login page.
 
-## I want to use a custom domain - is that possible?
+## Tech Stack
 
-We don't support custom domains (yet). If you want to deploy your project under your own domain then we recommend using Netlify. Visit our docs for more details: [Custom domains](https://docs.lovable.dev/tips-tricks/custom-domain/)
+- **Framework:** React 18
+- **Language:** TypeScript
+- **Build Tool:** Vite
+- **UI Components:** shadcn/ui
+- **Styling:** TailwindCSS
+- **Form Handling:** React Hook Form + Zod
+- **Data Fetching:** TanStack Query
+- **Routing:** React Router DOM
+- **Charts:** Recharts
+
+## Project Structure
+
+```
+src/
+├── components/     # Reusable UI components
+├── contexts/       # React context providers
+├── hooks/         # Custom React hooks
+├── lib/           # Utility functions and shared code
+├── pages/         # Page components
+└── main.tsx       # Application entry point
+```
