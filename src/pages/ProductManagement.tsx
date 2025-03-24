@@ -262,7 +262,7 @@ const ProductManagement = () => {
                           {product.prices.length > 1 ? (
                             <>From ${Math.min(...product.prices).toFixed(2)}</>
                           ) : (
-                            <>${product.prices[0].toFixed(2)}</>
+                            <>₱{product.prices[0].toFixed(2)}</>
                           )}
                         </TableCell>
                         <TableCell className="text-right">
