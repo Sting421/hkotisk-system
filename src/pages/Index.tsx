@@ -23,7 +23,7 @@ const Index = () => {
                 A streamlined kiosk solution for schools, with dedicated interfaces for staff and students.
               </p>
               <div className="mt-10 flex flex-col sm:flex-row gap-4 justify-center animate-slide-up">
-                <Link to="/browse">
+                <Link to="/student/login">
                   <Button size="lg" className="w-full sm:w-auto">
                     Student Access
                     <ChevronRight className="ml-2 h-4 w-4" />

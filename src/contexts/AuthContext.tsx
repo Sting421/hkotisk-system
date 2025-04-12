@@ -10,7 +10,7 @@ type User = {
   id: string;
   name: string;
   email: string;
-  role: "staff" | "admin";
+  role: "staff" | "admin" | "student";
 };
 
 type AuthContextType = {
@@ -18,6 +18,7 @@ type AuthContextType = {
   isAuthenticated: boolean;
   isLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
+  signup: (email: string, username: string, password: string) => Promise<void>;
   logout: () => void;
 };
 
@@ -54,6 +55,30 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setIsLoading(false);
   }, []);
 
+  const signup = async (email: string, username: string, password: string) => {
+    setIsLoading(true);
+    try {
+      const response = await axios.post(
+        `${baseUrl}/auth/signup`,
+        { email, username, password },
+        {
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+      
+      toast.success('Signup successful! Please login.');
+      navigate('/student/login');
+    } catch (error) {
+      console.error('Signup failed:', error);
+      toast.error('Signup failed. Please try again.');
+      throw error;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const login = async (email: string, password: string) => {
     setIsLoading(true);
 
@@ -82,7 +107,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         toast.success('Login successful!');
         
-        if (response.data.role === 'staff' || response.data.role === 'admin') {
+        if (response.data.role === 'student') {
+          navigate('/student/dashboard');
+        } else if (response.data.role === 'staff' || response.data.role === 'admin') {
           navigate('/staff/dashboard');
         }
       }
@@ -111,6 +138,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         isAuthenticated: !!user,
         isLoading,
         login,
+        signup,
         logout,
       }}
     >

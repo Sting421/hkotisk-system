@@ -13,6 +13,8 @@ import { StaffLayout } from "./components/StaffLayout";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import StaffLogin from "./pages/StaffLogin";
+import StudentLogin from "./pages/StudentLogin";
+import StudentSignup from "./pages/StudentSignup";
 import StaffDashboard from "./pages/StaffDashboard";
 import ProductManagement from "./pages/ProductManagement";
 import AddEditProduct from "./pages/AddEditProduct";
@@ -37,7 +39,9 @@ const App = () => (
                 <Route path="/" element={<Index />} />
                 
                 {/* Student Routes */}
-                <Route path="/browse" element={<StudentView />} />
+                <Route path="/student/login" element={<StudentLogin />} />
+                <Route path="/student/signup" element={<StudentSignup />} />
+                <Route path="/student/dashboard" element={<StudentView />} />
                 <Route path="/cart" element={<CartPage />} />
                 
                 {/* Staff Routes */}

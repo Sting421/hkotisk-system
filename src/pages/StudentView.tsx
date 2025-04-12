@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { useProducts, Product } from "@/contexts/ProductContext";
 import { ProductCard } from "@/components/ProductCard";
@@ -42,11 +41,11 @@ const StudentView = () => {
   const [selectedCategory, setSelectedCategory] = useState("");
   const [priceRange, setPriceRange] = useState([0, 100]);
   const [inStockOnly, setInStockOnly] = useState(false);
-  const [cart, setCart] = useState<Array<{ product: Product, quantity: number }>>([]);
+  const [cart, setCart] = useState<Array<{ product: Product, quantity: number, selectedSize: number }>>([]);
   const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
   
   // Calculate max price for filter
-  const maxPrice = Math.max(...products.map(product => product.price), 0);
+  const maxPrice = Math.max(...products.flatMap(product => product.prices), 0);
 
   useEffect(() => {
     if (!isLoading) {
@@ -81,11 +80,10 @@ const StudentView = () => {
       }
 
       // Filter by price range
-      filtered = filtered.filter(
-        product => 
-          product.price >= priceRange[0] && 
-          product.price <= priceRange[1]
-      );
+      filtered = filtered.filter(product => {
+        const minPrice = Math.min(...product.prices);
+        return minPrice >= priceRange[0] && minPrice <= priceRange[1];
+      });
 
       // Filter by in stock
       if (inStockOnly) {
@@ -107,7 +105,11 @@ const StudentView = () => {
             : item
         );
       } else {
-        return [...prevCart, { product, quantity: 1 }];
+        return [...prevCart, { 
+          product, 
+          quantity: 1, 
+          selectedSize: 0 // Default to first size option
+        }];
       }
     });
     
@@ -131,7 +133,7 @@ const StudentView = () => {
   };
 
   const cartTotal = cart.reduce(
-    (total, item) => total + item.product.price * item.quantity, 
+    (total, item) => total + item.product.prices[item.selectedSize] * item.quantity, 
     0
   );
 
@@ -144,7 +146,6 @@ const StudentView = () => {
 
   return (
     <div className="min-h-screen bg-hko-background">
-      
       <main className="pt-20 pb-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           {/* Header */}
@@ -307,7 +308,7 @@ const StudentView = () => {
                       </div>
                     ) : (
                       <div className="space-y-6">
-                        {cart.map(({ product, quantity }) => (
+                        {cart.map(({ product, quantity, selectedSize }) => (
                           <div key={product.id} className="flex border-b border-hko-border pb-4">
                             <div className="h-16 w-16 rounded bg-hko-secondary flex-shrink-0 overflow-hidden">
                               <img
@@ -326,9 +327,11 @@ const StudentView = () => {
                                   <X className="h-4 w-4" />
                                 </button>
                               </div>
-                              <p className="text-sm text-hko-text-secondary mt-1">
-                                ${product.price.toFixed(2)}
-                              </p>
+                              <div className="text-sm text-hko-text-secondary mt-1">
+                                <span>${product.prices[selectedSize].toFixed(2)}</span>
+                                <span className="mx-2">·</span>
+                                <span>{product.sizes[selectedSize]}</span>
+                              </div>
                               <div className="flex items-center justify-between mt-2">
                                 <div className="flex items-center space-x-2">
                                   <Button
@@ -355,7 +358,7 @@ const StudentView = () => {
                                   </Button>
                                 </div>
                                 <span className="font-medium">
-                                  ${(product.price * quantity).toFixed(2)}
+                                  ${(product.prices[selectedSize] * quantity).toFixed(2)}
                                 </span>
                               </div>
                             </div>

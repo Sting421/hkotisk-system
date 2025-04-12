@@ -87,20 +87,29 @@ export const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   const navigate = useNavigate();
 
-  const fetchProducts = async (authToken: string) => {
+  const fetchProducts = async (isStaffView = false) => {
     setIsLoading(true);
     try {
-      const response = await axios.get(`${baseUrl}/user/product`, {
-        headers: {
-          Authorization: `Bearer ${authToken}`,
-          'Content-Type': 'application/json',
-        },
-      });
+      // For staff view, include authentication
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+      
+      if (isStaffView) {
+        const authToken = localStorage.getItem('token');
+        if (!authToken) {
+          navigate('/staff/login');
+          return;
+        }
+        headers.Authorization = `Bearer ${authToken}`;
+      }
+
+      const response = await axios.get(`${baseUrl}/user/product`, { headers });
       const productList = response?.data?.oblist || response?.data || [];
       setProducts(productList.map(transformApiResponse));
     } catch (error) {
       console.error('Error fetching products:', error);
-      if (error.response?.status === 403) {
+      if (error.response?.status === 403 && isStaffView) {
         localStorage.removeItem('token');
         navigate('/staff/login');
       }
@@ -111,13 +120,8 @@ export const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ child
   };
 
   useEffect(() => {
-    const authToken = localStorage.getItem('token');
-    if (!authToken) {
-      setIsLoading(false);
-      navigate('/staff/login');
-      return;
-    }
-    fetchProducts(authToken);
+    const role = localStorage.getItem('role');
+    fetchProducts(role === 'staff');
   }, [navigate]);
 
   const addProduct = async (product: ProductFormData) => {
@@ -145,7 +149,7 @@ export const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ child
           'Content-Type': 'application/json',
         },
       });
-      fetchProducts(authToken);
+      fetchProducts(true);
       toast.success(`Product "${product.name}" added successfully`);
     } catch (error) {
       console.error('Error adding product:', error);
@@ -186,7 +190,7 @@ export const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ child
       });
       
       if (response.status === 200) {
-        await fetchProducts(authToken);
+        await fetchProducts(true);
         toast.success("Product updated successfully");
         navigate('/staff/products');
       }
@@ -218,7 +222,7 @@ export const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ child
           productId: id
         }
       });
-      fetchProducts(authToken);
+      fetchProducts(true);
       toast.success("Product deleted successfully");
     } catch (error) {
       console.error('Error deleting product:', error);

@@ -19,7 +19,8 @@ export const ProductCard: React.FC<ProductCardProps> = ({
   onAddToCart,
   className = "",
 }) => {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
+  const isStaff = user?.role === 'staff' || user?.role === 'admin';
   const isLowStock = product.stockLevel <= product.lowStockThreshold;
   const isOutOfStock = product.stockLevel <= 0;
 
@@ -67,7 +68,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
               <>${product.prices[0].toFixed(2)}</>
             )}
           </p>
-          {isAuthenticated && (
+          {isStaff && (
             <p className="text-xs text-hko-text-muted">
               Stock: {product.stockLevel} units
             </p>
@@ -75,7 +76,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
         </div>
       </CardContent>
       <CardFooter className="pt-0">
-        {isAuthenticated ? (
+        {isStaff ? (
           <Link to={`/staff/products/edit/${product.id}`} className="w-full">
             <Button variant="outline" className="w-full">
               <Edit className="h-4 w-4 mr-2" />
