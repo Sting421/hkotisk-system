@@ -178,7 +178,7 @@ export const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ child
         productImage: productData.imageUrl
       };
 
-      const response = await axios.put(`${baseUrl}/staff/product`, apiProduct, {
+      const response = await axios.put(`${baseUrl}/staff/product/${apiProduct.productId }`, apiProduct, {
         headers: {
           Authorization: `Bearer ${authToken}`,
           'Content-Type': 'application/json',
