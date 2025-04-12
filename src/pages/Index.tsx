@@ -8,7 +8,7 @@ import { ChevronRight, Users, ShoppingCart, LineChart } from "lucide-react";
 const Index = () => {
   return (
     <div className="min-h-screen bg-hko-background">
-      <Navbar />
+     
       
       <main className="pt-20">
         {/* Hero Section */}

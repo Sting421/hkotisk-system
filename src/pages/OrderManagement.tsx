@@ -112,7 +112,7 @@ export default function OrderManagement() {
 
   return (
     <div className="container mx-auto py-8">
-      <Navbar />
+      
       <h1 className="text-2xl font-bold mb-6 mt-8">Order Management</h1>
       <Card>
         <CardContent className="p-6">

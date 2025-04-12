@@ -1,6 +1,5 @@
 
 import React, { useState, useEffect } from "react";
-import { Navbar } from "@/components/Navbar";
 import { useProducts, Product } from "@/contexts/ProductContext";
 import { ProductCard } from "@/components/ProductCard";
 import { Button } from "@/components/ui/button";
@@ -145,8 +144,7 @@ const StudentView = () => {
 
   return (
     <div className="min-h-screen bg-hko-background">
-      <Navbar />
-
+      
       <main className="pt-20 pb-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           {/* Header */}

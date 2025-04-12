@@ -2,7 +2,6 @@ import React, { useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import axios from "axios";
 import {
   Form,
   FormControl,
@@ -15,6 +14,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select,
   SelectContent,
@@ -50,35 +50,7 @@ const PRODUCT_CATEGORIES = [
   "Beverages"
 ];
 
-const baseUrl = import.meta.env.VITE_BASE_URL;
-
-// Upload image to backend
-const uploadImage = async (file: File) => {
-  const token = localStorage.getItem('token');
-  if (!token) {
-    throw new Error('No authentication token found');
-  }
-
-  const formData = new FormData();
-  formData.append('file', file);
-
-  try {
-    const response = await axios({
-      method: 'post',
-      url: `${baseUrl}/staff/product/upload`,
-      data: formData,
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'multipart/form-data'
-      }
-    });
-
-    return response.data.url;
-  } catch (error) {
-    console.error('Error uploading image:', error);
-    throw new Error('Failed to upload image');
-  }
-};
+import { uploadToCloudinary } from "@/lib/upload-helper";
 
 export const ProductForm: React.FC<ProductFormProps> = ({
   initialData = {},
@@ -109,7 +81,8 @@ export const ProductForm: React.FC<ProductFormProps> = ({
 
       // Upload image to Cloudinary if it's a File
       if (values.image instanceof File) {
-        imageUrl = await uploadImage(values.image);
+        const uploadResult = await uploadToCloudinary(values.image);
+        imageUrl = uploadResult.url;
       }
 
       const productData: ProductFormData = {
@@ -142,6 +115,21 @@ export const ProductForm: React.FC<ProductFormProps> = ({
     form.setValue("prices", [...currentPrices, 0]);
     form.setValue("sizes", [...currentSizes, ""]);
     form.setValue("quantity", [...currentQuantities, 0]);
+    
+    // Trigger form update to re-render the fields
+    form.trigger();
+  };
+
+  const removeSizeVariant = (index: number) => {
+    const currentPrices = form.getValues("prices");
+    const currentSizes = form.getValues("sizes");
+    const currentQuantities = form.getValues("quantity");
+
+    form.setValue("prices", currentPrices.filter((_, i) => i !== index));
+    form.setValue("sizes", currentSizes.filter((_, i) => i !== index));
+    form.setValue("quantity", currentQuantities.filter((_, i) => i !== index));
+    
+    form.trigger();
   };
 
   return (
@@ -261,21 +249,37 @@ export const ProductForm: React.FC<ProductFormProps> = ({
                 Add Size Variant
               </Button>
             </div>
-            {form.getValues("sizes").map((_, index) => (
-              <div key={index} className="grid grid-cols-3 gap-4">
-                <FormField
-                  control={form.control}
-                  name={`sizes.${index}`}
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Size</FormLabel>
-                      <FormControl>
-                        <Input placeholder="e.g., S, M, L" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+            {form.watch("sizes").map((_, index) => (
+              <div key={index} className="grid grid-cols-4 gap-4">
+                <div>
+                  <FormField
+                    control={form.control}
+                    name={`sizes.${index}`}
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Size</FormLabel>
+                        <Select
+                          onValueChange={field.onChange}
+                          defaultValue={field.value}
+                        >
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select a size" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {["Small", "Medium", "Large"].map((size) => (
+                              <SelectItem key={size} value={size}>
+                                {size}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
                 <FormField
                   control={form.control}
                   name={`prices.${index}`}
@@ -311,6 +315,14 @@ export const ProductForm: React.FC<ProductFormProps> = ({
                     </FormItem>
                   )}
                 />
+                <Button 
+                  type="button" 
+                  variant="destructive" 
+                  onClick={() => removeSizeVariant(index)}
+                  className="mt-8"
+                >
+                  Remove
+                </Button>
               </div>
             ))}
           </div>

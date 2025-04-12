@@ -21,7 +21,7 @@ import { useAuth } from "@/contexts/AuthContext";
 
 const loginSchema = z.object({
   email: z.string().email("Invalid email address"),
-  password: z.string().min(8, "Password must be at least 8 characters"),
+  password: z.string().min(6, "Password must be at least 8 characters"),
 });
 
 type LoginFormValues = z.infer<typeof loginSchema>;
@@ -53,7 +53,7 @@ const StaffLogin = () => {
 
   return (
     <div className="min-h-screen bg-hko-background">
-      <Navbar />
+      
       
       <main className="pt-20">
         <div className="max-w-md mx-auto px-4 sm:px-6 py-12">

@@ -63,23 +63,22 @@ export default {
 					border: 'hsl(var(--sidebar-border))',
 					ring: 'hsl(var(--sidebar-ring))'
 				},
-				// Custom colors for HKOTISK
-				hko: {
-					background: '#F8F9FA',
-					surface: '#FFFFFF',
-					border: '#E9ECEF',
-					primary: '#74C0FC',
-					secondary: '#E9ECEF',
-					text: {
-						primary: '#212529',
-						secondary: '#6C757D',
-						muted: '#ADB5BD'
-					},
-					success: '#51CF66',
-					warning: '#FFD43B',
-					danger: '#FA5252',
-					overlay: 'rgba(33, 37, 41, 0.05)'
-				}
+// Custom colors for HKOTISK
+hko: {
+  primary: '#F2C300',
+  secondary: '#883C40',
+  gray: {
+    light: '#F6F6F6',
+    DEFAULT: '#D9D9D9'
+  },
+  text: {
+    primary: '#883C40',
+    secondary: '#666666',
+    light: '#FFFFFF'
+  },
+  background: '#F6F6F6',
+  surface: '#FFFFFF'
+}
 			},
 			borderRadius: {
 				lg: 'var(--radius)',

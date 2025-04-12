@@ -1,6 +1,5 @@
 
 import React, { useState, useEffect } from "react";
-import { Navbar } from "@/components/Navbar";
 import { useAuth } from "@/contexts/AuthContext";
 import { useProducts } from "@/contexts/ProductContext";
 import { useNavigate } from "react-router-dom";
@@ -83,7 +82,7 @@ const InventoryMonitoring = () => {
 
   return (
     <div className="min-h-screen bg-hko-background">
-      <Navbar />
+     
 
       <main className="pt-20 pb-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">

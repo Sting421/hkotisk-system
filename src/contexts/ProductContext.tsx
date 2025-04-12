@@ -128,7 +128,18 @@ export const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }
 
     try {
-      await axios.post(`${baseUrl}/staff/product`, product, {
+      // Transform the data to match API expectations
+      const apiProduct = {
+        productName: product.name,
+        description: product.description,
+        prices: product.prices,
+        sizes: product.sizes,
+        quantity: product.quantity,
+        category: product.category,
+        productImage: product.imageUrl
+      };
+      
+      await axios.post(`${baseUrl}/staff/product`, apiProduct, {
         headers: {
           Authorization: `Bearer ${authToken}`,
           'Content-Type': 'application/json',
@@ -155,7 +166,19 @@ export const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }
 
     try {
-      const response = await axios.put(`${baseUrl}/staff/product`, productData, {
+      // Transform the data to match API expectations
+      const apiProduct = {
+        productId: parseInt(productData.id || '0'),
+        productName: productData.name,
+        description: productData.description,
+        prices: productData.prices,
+        sizes: productData.sizes,
+        quantity: productData.quantity,
+        category: productData.category,
+        productImage: productData.imageUrl
+      };
+
+      const response = await axios.put(`${baseUrl}/staff/product`, apiProduct, {
         headers: {
           Authorization: `Bearer ${authToken}`,
           'Content-Type': 'application/json',

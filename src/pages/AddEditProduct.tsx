@@ -1,7 +1,6 @@
 
 import React, { useState, useEffect } from "react";
 import { Product, ProductFormData } from "@/contexts/ProductContext";
-import { Navbar } from "@/components/Navbar";
 import { ProductForm } from "@/components/ProductForm";
 import { useAuth } from "@/contexts/AuthContext";
 import { useProducts } from "@/contexts/ProductContext";
@@ -39,32 +38,17 @@ const AddEditProduct = () => {
     }
   }, [id, isLoading, getProductById, navigate, isEditMode]);
 
-  const handleSubmit = async (formData: Partial<Product>) => {
+  const handleSubmit = async (formData: ProductFormData) => {
     setIsSubmitting(true);
     try {
-      if (isEditMode && id && formData.name && formData.description && formData.prices && formData.sizes && formData.quantity && formData.category && formData.imageUrl) {
-        const productData: ProductFormData = {
-          id,
-          name: formData.name,
-          description: formData.description,
-          prices: formData.prices,
-          sizes: formData.sizes,
-          quantity: formData.quantity,
-          category: formData.category,
-          imageUrl: formData.imageUrl
-        };
-        await updateProduct(productData);
-      } else if (formData.name && formData.description && formData.prices && formData.sizes && formData.quantity && formData.category && formData.imageUrl) {
-        const productData: ProductFormData = {
-          name: formData.name,
-          description: formData.description,
-          prices: formData.prices,
-          sizes: formData.sizes,
-          quantity: formData.quantity,
-          category: formData.category,
-          imageUrl: formData.imageUrl
-        };
-        await addProduct(productData);
+      if (isEditMode && id) {
+        await updateProduct({
+          ...formData,
+          id
+        });
+        navigate("/staff/products");
+      } else {
+        await addProduct(formData);
         navigate("/staff/products");
       }
     } catch (error) {
@@ -80,7 +64,7 @@ const AddEditProduct = () => {
 
   return (
     <div className="min-h-screen bg-hko-background">
-      <Navbar />
+     
 
       <main className="pt-20 pb-12">
         <div className="max-w-3xl mx-auto px-4 sm:px-6">
