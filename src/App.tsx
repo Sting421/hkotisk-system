@@ -6,6 +6,7 @@ import { HashRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "./contexts/AuthContext";
 import { ProductProvider } from "./contexts/ProductContext";
 import { OrderProvider } from "./contexts/OrderContext";
+import { CartProvider } from "./contexts/CartContext";
 import ProtectedRoute from "./components/ProtectedRoute";
 import { StaffLayout } from "./components/StaffLayout";
 
@@ -32,8 +33,9 @@ const App = () => (
         <AuthProvider>
           <ProductProvider>
             <OrderProvider>
-              <Toaster />
-              <Sonner />
+              <CartProvider>
+                <Toaster />
+                <Sonner />
               <Routes>
                 {/* Common Routes */}
                 <Route path="/" element={<Index />} />
@@ -72,6 +74,7 @@ const App = () => (
                 {/* Catch-all */}
                 <Route path="*" element={<NotFound />} />
               </Routes>
+              </CartProvider>
             </OrderProvider>
           </ProductProvider>
         </AuthProvider>

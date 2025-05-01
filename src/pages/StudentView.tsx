@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from "react";
+import axios from "axios";
 import { useProducts, Product } from "@/contexts/ProductContext";
+import { useCart } from "@/contexts/CartContext";
 import { ProductCard } from "@/components/ProductCard";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -35,17 +37,20 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
 
 const StudentView = () => {
+  const baseUrl = import.meta.env.VITE_BASE_URL;
   const { products, isLoading } = useProducts();
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("");
   const [priceRange, setPriceRange] = useState([0, 100]);
   const [inStockOnly, setInStockOnly] = useState(false);
-  const [cart, setCart] = useState<Array<{ product: Product, quantity: number, selectedSize: number }>>([]);
+  const [loadingProductId, setLoadingProductId] = useState<number | null>(null);
   const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
+  const [tempQuantities, setTempQuantities] = useState<Record<number, number>>({});
+  const [updateTimers, setUpdateTimers] = useState<Record<number, NodeJS.Timeout>>({});
   
   // Calculate max price for filter
-  const maxPrice = Math.max(...products.flatMap(product => product.prices), 0);
+  const maxPrice = Math.max(...products.map(product => product.price), 0);
 
   useEffect(() => {
     if (!isLoading) {
@@ -67,7 +72,7 @@ const StudentView = () => {
         const term = searchTerm.toLowerCase();
         filtered = filtered.filter(
           product =>
-            product.name.toLowerCase().includes(term) ||
+            product.productName.toLowerCase().includes(term) ||
             product.description.toLowerCase().includes(term)
         );
       }
@@ -81,61 +86,55 @@ const StudentView = () => {
 
       // Filter by price range
       filtered = filtered.filter(product => {
-        const minPrice = Math.min(...product.prices);
-        return minPrice >= priceRange[0] && minPrice <= priceRange[1];
+        return product.price >= priceRange[0] && product.price <= priceRange[1];
       });
 
       // Filter by in stock
       if (inStockOnly) {
-        filtered = filtered.filter(product => product.stockLevel > 0);
+        filtered = filtered.filter(product => product.quantity > 0 && product.available);
       }
 
       setFilteredProducts(filtered);
     }
   }, [isLoading, products, searchTerm, selectedCategory, priceRange, inStockOnly]);
 
-  const addToCart = (product: Product) => {
-    setCart(prevCart => {
-      const existingItem = prevCart.find(item => item.product.id === product.id);
-      
-      if (existingItem) {
-        return prevCart.map(item => 
-          item.product.id === product.id 
-            ? { ...item, quantity: item.quantity + 1 } 
-            : item
-        );
-      } else {
-        return [...prevCart, { 
-          product, 
-          quantity: 1, 
-          selectedSize: 0 // Default to first size option
-        }];
-      }
-    });
-    
-    toast.success(`Added ${product.name} to cart`);
-  };
-
-  const removeFromCart = (productId: string) => {
-    setCart(prevCart => prevCart.filter(item => item.product.id !== productId));
-  };
-
-  const updateQuantity = (productId: string, newQuantity: number) => {
-    if (newQuantity < 1) return;
-    
-    setCart(prevCart => 
-      prevCart.map(item => 
-        item.product.id === productId 
-          ? { ...item, quantity: newQuantity } 
-          : item
-      )
-    );
-  };
-
+  const { cart, isLoading: isCartLoading, fetchCart } = useCart();
   const cartTotal = cart.reduce(
-    (total, item) => total + item.product.prices[item.selectedSize] * item.quantity, 
+    (total, item) => total + item.price * (tempQuantities[item.cartId] ?? item.quantity), 
     0
   );
+
+  const addToCart = async (product: Product) => {
+    try {
+      setLoadingProductId(product.productId);
+      const authToken = localStorage.getItem('token');
+      if (!authToken) {
+        toast.error("Please login to add items to cart");
+        return;
+      }
+
+      await axios.post(`${baseUrl}/user/cart`, {
+        productId: product.productId,
+        email: localStorage.getItem('email'),
+        quantity: 1,
+        price: product.price,
+        ordered: false
+      }, {
+        headers: {
+          Authorization: `Bearer ${authToken}`,
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      await fetchCart();
+      toast.success(`Added ${product.productName} to cart`);
+    } catch (error) {
+      console.error('Error adding to cart:', error);
+      toast.error("Failed to add item to cart. Please try again.");
+    } finally {
+      setLoadingProductId(null);
+    }
+  };
 
   const clearFilters = () => {
     setSearchTerm("");
@@ -185,7 +184,7 @@ const StudentView = () => {
                 {/* Category Filter */}
                 <Accordion type="single" collapsible className="w-[200px]">
                   <AccordionItem value="categories" className="border-0">
-                    <AccordionTrigger className="py-2 px-3 bg-hko-secondary rounded-md text-sm hover:no-underline hover:bg-hko-secondary/80">
+                    <AccordionTrigger className="py-2 px-3 bg-hko-white rounded-md text-sm hover:no-underline hover:bg-hko-white/80">
                       <span className="flex items-center">
                         <Filter className="h-4 w-4 mr-2" />
                         Categories
@@ -214,7 +213,7 @@ const StudentView = () => {
                 {/* Price Filter */}
                 <Accordion type="single" collapsible className="w-[200px]">
                   <AccordionItem value="price" className="border-0">
-                    <AccordionTrigger className="py-2 px-3 bg-hko-secondary rounded-md text-sm hover:no-underline hover:bg-hko-secondary/80">
+                    <AccordionTrigger className="py-2 px-3 bg-hko-white rounded-md text-sm hover:no-underline hover:bg-hko-white/80">
                       <span className="flex items-center">
                         <SlidersHorizontal className="h-4 w-4 mr-2" />
                         Price Range
@@ -223,8 +222,8 @@ const StudentView = () => {
                     <AccordionContent className="absolute bg-white mt-1 p-4 rounded-md shadow-elevation-1 border border-hko-border z-20 w-[250px]">
                       <div className="space-y-4">
                         <div className="flex justify-between items-center">
-                          <span className="text-sm font-medium">${priceRange[0]}</span>
-                          <span className="text-sm font-medium">${priceRange[1]}</span>
+                          <span className="text-sm font-medium">₱{priceRange[0]}</span>
+                          <span className="text-sm font-medium">₱{priceRange[1]}</span>
                         </div>
                         <Slider
                           value={priceRange}
@@ -308,29 +307,45 @@ const StudentView = () => {
                       </div>
                     ) : (
                       <div className="space-y-6">
-                        {cart.map(({ product, quantity, selectedSize }) => (
-                          <div key={product.id} className="flex border-b border-hko-border pb-4">
+                        {cart.map((item) => (
+                          <div key={item.cartId} className="flex border-b border-hko-border pb-4">
                             <div className="h-16 w-16 rounded bg-hko-secondary flex-shrink-0 overflow-hidden">
                               <img
-                                src={product.imageUrl}
-                                alt={product.name}
+                                src={item.productImage}
+                                alt={item.productName}
                                 className="h-full w-full object-cover"
                               />
                             </div>
                             <div className="ml-4 flex-1">
                               <div className="flex justify-between">
-                                <h4 className="font-medium text-hko-text-primary">{product.name}</h4>
+                                <h4 className="font-medium text-hko-text-primary">{item.productName}</h4>
                                 <button
-                                  onClick={() => removeFromCart(product.id)}
+                                  onClick={async () => {
+                                    try {
+                                      const authToken = localStorage.getItem('token');
+                                      if (!authToken) {
+                                        toast.error("Please login");
+                                        return;
+                                      }
+
+                                      await axios.delete(`${baseUrl}/user/cart/${item.cartId}`, {
+                                        headers: {
+                                          Authorization: `Bearer ${authToken}`,
+                                        },
+                                      });
+                                      await fetchCart();
+                                    } catch (error) {
+                                      console.error('Error removing item:', error);
+                                      toast.error("Failed to remove item");
+                                    }
+                                  }}
                                   className="text-hko-text-muted hover:text-red-500"
                                 >
                                   <X className="h-4 w-4" />
                                 </button>
                               </div>
                               <div className="text-sm text-hko-text-secondary mt-1">
-                                <span>${product.prices[selectedSize].toFixed(2)}</span>
-                                <span className="mx-2">·</span>
-                                <span>{product.sizes[selectedSize]}</span>
+                                <span>₱{item.price.toFixed(2)}</span>
                               </div>
                               <div className="flex items-center justify-between mt-2">
                                 <div className="flex items-center space-x-2">
@@ -338,27 +353,151 @@ const StudentView = () => {
                                     variant="outline"
                                     size="icon"
                                     className="h-6 w-6 rounded-full"
-                                    onClick={() => updateQuantity(product.id, quantity - 1)}
-                                    disabled={quantity <= 1}
+                                    onClick={() => {
+                                      if (item.quantity <= 1) return;
+                                      
+                                      const newQuantity = (tempQuantities[item.cartId] ?? item.quantity) - 1;
+                                      setTempQuantities(prev => ({ ...prev, [item.cartId]: newQuantity }));
+                                      
+                                      // Clear existing timer if any
+                                      if (updateTimers[item.cartId]) {
+                                        clearTimeout(updateTimers[item.cartId]);
+                                      }
+                                      
+                                      // Set new timer for this cart item
+                                      const timer = setTimeout(async () => {
+                                        try {
+                                          const authToken = localStorage.getItem('token');
+                                          if (!authToken) {
+                                            toast.error("Please login");
+                                            return;
+                                          }
+
+                                          await axios.post(`${baseUrl}/user/cart`, {
+                                            productId: item.productId,
+                                            email: localStorage.getItem('email'),
+                                            quantity: newQuantity,
+                                            price: item.price,
+                                            ordered: false
+                                          }, {
+                                            headers: {
+                                              Authorization: `Bearer ${authToken}`,
+                                              'Content-Type': 'application/json',
+                                            },
+                                          });
+                                          
+                                          await fetchCart();
+                                          // Clear temp quantity after successful update
+                                          setTempQuantities(prev => {
+                                            const newTemp = { ...prev };
+                                            delete newTemp[item.cartId];
+                                            return newTemp;
+                                          });
+                                        } catch (error) {
+                                          console.error('Error updating quantity:', error);
+                                          toast.error("Failed to update quantity");
+                                          // Reset temp quantity on error
+                                          setTempQuantities(prev => {
+                                            const newTemp = { ...prev };
+                                            delete newTemp[item.cartId];
+                                            return newTemp;
+                                          });
+                                        }
+                                        // Clear timer reference
+                                        setUpdateTimers(prev => {
+                                          const newTimers = { ...prev };
+                                          delete newTimers[item.cartId];
+                                          return newTimers;
+                                        });
+                                      }, 3000);
+                                      
+                                      // Save timer reference
+                                      setUpdateTimers(prev => ({
+                                        ...prev,
+                                        [item.cartId]: timer
+                                      }));
+                                    }}
+                                    disabled={item.quantity <= 1}
                                   >
                                     <span className="sr-only">Decrease</span>
                                     <span>-</span>
                                   </Button>
                                   <span className="text-sm font-medium w-6 text-center">
-                                    {quantity}
+                                    {tempQuantities[item.cartId] ?? item.quantity}
                                   </span>
                                   <Button
                                     variant="outline"
                                     size="icon"
                                     className="h-6 w-6 rounded-full"
-                                    onClick={() => updateQuantity(product.id, quantity + 1)}
+                                    onClick={() => {
+                                      const newQuantity = (tempQuantities[item.cartId] ?? item.quantity) + 1;
+                                      setTempQuantities(prev => ({ ...prev, [item.cartId]: newQuantity }));
+                                      
+                                      // Clear existing timer if any
+                                      if (updateTimers[item.cartId]) {
+                                        clearTimeout(updateTimers[item.cartId]);
+                                      }
+                                      
+                                      // Set new timer for this cart item
+                                      const timer = setTimeout(async () => {
+                                        try {
+                                          const authToken = localStorage.getItem('token');
+                                          if (!authToken) {
+                                            toast.error("Please login");
+                                            return;
+                                          }
+
+                                          await axios.post(`${baseUrl}/user/cart`, {
+                                            productId: item.productId,
+                                            email: localStorage.getItem('email'),
+                                            quantity: newQuantity,
+                                            price: item.price,
+                                            ordered: false
+                                          }, {
+                                            headers: {
+                                              Authorization: `Bearer ${authToken}`,
+                                              'Content-Type': 'application/json',
+                                            },
+                                          });
+                                          
+                                          await fetchCart();
+                                          // Clear temp quantity after successful update
+                                          setTempQuantities(prev => {
+                                            const newTemp = { ...prev };
+                                            delete newTemp[item.cartId];
+                                            return newTemp;
+                                          });
+                                        } catch (error) {
+                                          console.error('Error updating quantity:', error);
+                                          toast.error("Failed to update quantity");
+                                          // Reset temp quantity on error
+                                          setTempQuantities(prev => {
+                                            const newTemp = { ...prev };
+                                            delete newTemp[item.cartId];
+                                            return newTemp;
+                                          });
+                                        }
+                                        // Clear timer reference
+                                        setUpdateTimers(prev => {
+                                          const newTimers = { ...prev };
+                                          delete newTimers[item.cartId];
+                                          return newTimers;
+                                        });
+                                      }, 3000);
+                                      
+                                      // Save timer reference
+                                      setUpdateTimers(prev => ({
+                                        ...prev,
+                                        [item.cartId]: timer
+                                      }));
+                                    }}
                                   >
                                     <span className="sr-only">Increase</span>
                                     <span>+</span>
                                   </Button>
                                 </div>
                                 <span className="font-medium">
-                                  ${(product.prices[selectedSize] * quantity).toFixed(2)}
+                                ₱{(item.price * (tempQuantities[item.cartId] ?? item.quantity)).toFixed(2)}
                                 </span>
                               </div>
                             </div>
@@ -372,12 +511,37 @@ const StudentView = () => {
                       <div className="flex justify-between py-4 border-t border-hko-border">
                         <span className="font-semibold text-hko-text-primary">Total</span>
                         <span className="font-semibold text-hko-text-primary">
-                          ${cartTotal.toFixed(2)}
+                        ₱{cartTotal.toFixed(2)}
                         </span>
                       </div>
-                      <Button className="w-full" disabled={cart.length === 0}>
-                        Checkout
-                      </Button>
+              <Button 
+                className="w-full" 
+                disabled={cart.length === 0}
+                onClick={async () => {
+                  try {
+                    const authToken = localStorage.getItem('token');
+                    if (!authToken) {
+                      toast.error("Please login to checkout");
+                      return;
+                    }
+
+                    await axios.post(`${baseUrl}/user/order`, {}, {
+                      headers: {
+                        Authorization: `Bearer ${authToken}`,
+                        'Content-Type': 'application/json',
+                      },
+                    });
+                    
+                    await fetchCart();
+                    toast.success("Order placed successfully!");
+                  } catch (error) {
+                    console.error('Error during checkout:', error);
+                    toast.error("Failed to place order. Please try again.");
+                  }
+                }}
+              >
+                Checkout
+              </Button>
                     </div>
                   </SheetFooter>
                 </SheetContent>
@@ -554,10 +718,11 @@ const StudentView = () => {
             ) : (
               filteredProducts.map((product) => (
                 <ProductCard
-                  key={product.id}
+                  key={product.productId}
                   product={product}
                   onAddToCart={() => addToCart(product)}
                   className="h-full"
+                  isLoading={loadingProductId === product.productId}
                 />
               ))
             )}

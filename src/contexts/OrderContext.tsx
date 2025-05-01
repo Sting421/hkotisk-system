@@ -28,6 +28,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
 
     setIsLoading(true)
     setError(null)
+    
 
     try {
       const response = await axios.get<OrderResponse>(`${baseUrl}/staff/orders`, {
@@ -76,7 +77,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!token) return
-
+    
     fetchOrders()
 
     const socket = new WebSocket(`ws://${wsURL}/ws/orders`)

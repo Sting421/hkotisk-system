@@ -3,7 +3,7 @@ import React from "react";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ShoppingCart, Edit } from "lucide-react";
+import { ShoppingCart, Edit, Loader2 } from "lucide-react";
 import { Product } from "@/contexts/ProductContext";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
@@ -12,12 +12,14 @@ interface ProductCardProps {
   product: Product;
   onAddToCart?: () => void;
   className?: string;
+  isLoading?: boolean;
 }
 
 export const ProductCard: React.FC<ProductCardProps> = ({
   product,
   onAddToCart,
   className = "",
+  isLoading = false,
 }) => {
   const { isAuthenticated, user } = useAuth();
   const isStaff = user?.role === 'staff' || user?.role === 'admin';
@@ -62,13 +64,9 @@ export const ProductCard: React.FC<ProductCardProps> = ({
         </p>
         <div className="flex justify-between items-center">
           <p className="font-semibold text-hko-text-primary">
-            ${product.price.toFixed(2)}
+          ₱{product.price.toFixed(2)}
           </p>
-          {isStaff && (
-            <p className="text-xs text-hko-text-muted">
-              Stock: {product.quantity} units
-            </p>
-          )}
+          Stock: {product.quantity} units
         </div>
       </CardContent>
       <CardFooter className="pt-0">
@@ -82,12 +80,16 @@ export const ProductCard: React.FC<ProductCardProps> = ({
         ) : (
           <Button
             onClick={onAddToCart}
-            disabled={isOutOfStock}
+            disabled={isOutOfStock || isLoading}
             className="w-full"
             variant={isOutOfStock ? "outline" : "default"}
           >
-            <ShoppingCart className="h-4 w-4 mr-2" />
-            {isOutOfStock ? "Out of Stock" : "Add to Cart"}
+            {isLoading ? (
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            ) : (
+              <ShoppingCart className="h-4 w-4 mr-2" />
+            )}
+            {isOutOfStock ? "Out of Stock" : isLoading ? "Adding..." : "Add to Cart"}
           </Button>
         )}
       </CardFooter>
