@@ -3,10 +3,15 @@ import { Navigate } from "react-router-dom"
 
 interface ProtectedRouteProps {
   element: React.ReactNode
-  allowedRoles?: ("staff" | "admin")[]
+  allowedRoles?: ("staff" | "admin" | "student")[]
+  redirectTo?: string
 }
 
-export default function ProtectedRoute({ element, allowedRoles = ["staff", "admin"] }: ProtectedRouteProps) {
+export default function ProtectedRoute({ 
+  element, 
+  allowedRoles = [], 
+  redirectTo = "/student/login" 
+}: ProtectedRouteProps) {
   const { user, isLoading } = useAuth()
 
   if (isLoading) {
@@ -14,7 +19,7 @@ export default function ProtectedRoute({ element, allowedRoles = ["staff", "admi
   }
 
   if (!user) {
-    return <Navigate to="/staff/login" replace />
+    return <Navigate to={redirectTo} replace />
   }
 
   if (allowedRoles.length > 0 && !allowedRoles.includes(user.role)) {

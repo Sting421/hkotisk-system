@@ -57,10 +57,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const signup = async (email: string, username: string, password: string) => {
     setIsLoading(true);
+    
+
     try {
       const response = await axios.post(
         `${baseUrl}/auth/signup`,
-        { email, username, password },
+        { email, username, password,role: 'student'},
         {
           headers: {
             'Content-Type': 'application/json',
