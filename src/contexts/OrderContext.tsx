@@ -1,29 +1,17 @@
-import { createContext, useContext, ReactNode, useState } from "react"
+import { createContext, useContext, ReactNode, useState, useEffect, useCallback } from "react"
 import { useToast } from "@/components/ui/use-toast"
+import axios from "axios"
+import type { Order, OrderResponse } from "@/types/order"
 
-interface Order {
-  id: string
-  userId: string
-  items: OrderItem[]
-  status: "pending" | "processing" | "completed" | "cancelled"
-  total: number
-  createdAt: Date
-}
-
-interface OrderItem {
-  productId: string
-  name: string
-  price: number
-  quantity: number
-}
+const baseUrl = import.meta.env.VITE_BASE_URL
+const wsURL = import.meta.env.VITE_WS_URL
 
 interface OrderContextType {
   orders: Order[]
-  addOrder: (order: Omit<Order, "id" | "createdAt">) => Promise<void>
-  updateOrderStatus: (orderId: string, status: Order["status"]) => Promise<void>
-  getUserOrders: (userId: string) => Order[]
-  getPendingOrders: () => Order[]
-  getAllOrders: () => Order[]
+  isLoading: boolean
+  error: string | null
+  updateOrderStatus: (orderId: number, status: string, email: string) => Promise<void>
+  fetchOrders: () => Promise<void>
 }
 
 const OrderContext = createContext<OrderContextType | undefined>(undefined)
@@ -31,68 +19,99 @@ const OrderContext = createContext<OrderContextType | undefined>(undefined)
 export function OrderProvider({ children }: { children: ReactNode }) {
   const { toast } = useToast()
   const [orders, setOrders] = useState<Order[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const token = localStorage.getItem("token")
 
-  const addOrder = async (orderData: Omit<Order, "id" | "createdAt">) => {
+  const fetchOrders = useCallback(async () => {
+    if (!token) return
+
+    setIsLoading(true)
+    setError(null)
+
     try {
-      const newOrder: Order = {
-        ...orderData,
-        id: crypto.randomUUID(),
-        createdAt: new Date()
+      const response = await axios.get<OrderResponse>(`${baseUrl}/staff/orders`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      setOrders(response.data.orderlist)
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to fetch orders"
+      setError(message)
+      toast({
+        title: "Error",
+        description: message,
+        variant: "destructive"
+      })
+    } finally {
+      setIsLoading(false)
+    }
+  }, [token, toast])
+
+  const updateOrderStatus = async (orderId: number, orderStatus: string, email: string) => {
+    if (!token) return
+
+    try {
+      await axios.post(
+        `${baseUrl}/staff/order`,
+        { orderId, email, orderStatus },
+        { headers: { Authorization: `Bearer ${token}` } }
+      )
+      
+      toast({
+        title: "Success",
+        description: `Order #${orderId} status updated to ${orderStatus}`
+      })
+      
+      await fetchOrders()
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to update order status"
+      toast({
+        title: "Error",
+        description: message,
+        variant: "destructive"
+      })
+      throw error
+    }
+  }
+
+  useEffect(() => {
+    if (!token) return
+
+    fetchOrders()
+
+    const socket = new WebSocket(`ws://${wsURL}/ws/orders`)
+    
+    socket.onopen = () => {
+      console.log('WebSocket connection established')
+    }
+
+    socket.onmessage = () => {
+      fetchOrders()
+    }
+
+    socket.onerror = (error) => {
+      console.error('WebSocket error: ', error)
+      toast({
+        title: "Connection Error",
+        description: "Real-time updates may be delayed",
+        variant: "destructive"
+      })
+    }
+
+    return () => {
+      if (socket.readyState === WebSocket.OPEN) {
+        socket.close()
       }
-      setOrders(prev => [...prev, newOrder])
-      toast({
-        title: "Order Created",
-        description: `Order #${newOrder.id.slice(0, 8)} has been created successfully.`
-      })
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to create order. Please try again.",
-        variant: "destructive"
-      })
-      throw error
     }
-  }
-
-  const updateOrderStatus = async (orderId: string, status: Order["status"]) => {
-    try {
-      setOrders(prev => prev.map(order => 
-        order.id === orderId ? { ...order, status } : order
-      ))
-      toast({
-        title: "Order Updated",
-        description: `Order #${orderId.slice(0, 8)} status changed to ${status}.`
-      })
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to update order status. Please try again.",
-        variant: "destructive"
-      })
-      throw error
-    }
-  }
-
-  const getUserOrders = (userId: string) => {
-    return orders.filter(order => order.userId === userId)
-  }
-
-  const getPendingOrders = () => {
-    return orders.filter(order => order.status === "pending")
-  }
-
-  const getAllOrders = () => {
-    return orders
-  }
+  }, [token, fetchOrders, toast])
 
   return (
     <OrderContext.Provider value={{
       orders,
-      addOrder,
+      isLoading,
+      error,
       updateOrderStatus,
-      getUserOrders,
-      getPendingOrders,
-      getAllOrders
+      fetchOrders
     }}>
       {children}
     </OrderContext.Provider>

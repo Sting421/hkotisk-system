@@ -117,7 +117,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
               <FormItem>
                 <FormLabel>Product Name</FormLabel>
                 <FormControl>
-                  <Input placeholder={initialData.productName || "Enter product name"} {...field} />
+                  <Input placeholder="Enter product name" {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -133,7 +133,6 @@ export const ProductForm: React.FC<ProductFormProps> = ({
                 <FormLabel>Category</FormLabel>
                 <Select
                   onValueChange={field.onChange}
-                  defaultValue={field.value}
                 >
                   <FormControl>
                     <SelectTrigger>
@@ -154,25 +153,69 @@ export const ProductForm: React.FC<ProductFormProps> = ({
           />
 
           {/* Has Sizes Toggle */}
-          {/* Available Toggle */}
+        
+          
+
+          
+        </div>
+
+        {/* Description */}
+        <FormField
+          control={form.control}
+            name="description"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Description</FormLabel>
+                <FormControl>
+                  <Textarea
+                    placeholder="Enter product description"
+                  className="min-h-[100px]"
+                  {...field}
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <div className="grid grid-cols-2 gap-4">
           <FormField
             control={form.control}
-            name="available"
+            name="price"
             render={({ field }) => (
-              <FormItem className="flex flex-row items-center space-x-2">
-                <FormLabel>Available</FormLabel>
+              <FormItem>
+                <FormLabel>Price ($)</FormLabel>
                 <FormControl>
-                  <Checkbox
-                    checked={field.value}
-                    onCheckedChange={field.onChange}
+                  <Input
+                    type="number"
+                    step="0.01"
+                    {...field}
+                    onChange={(e) => field.onChange(parseFloat(e.target.value))}
                   />
                 </FormControl>
                 <FormMessage />
               </FormItem>
             )}
           />
-
-          {/* Image Upload */}
+          <FormField
+            control={form.control}
+            name="quantity"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Quantity</FormLabel>
+                <FormControl>
+                  <Input
+                    type="number"
+                    {...field}
+                    onChange={(e) => field.onChange(parseInt(e.target.value))}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
+            {/* Image Upload */}
           <FormField
             control={form.control}
             name="image"
@@ -199,67 +242,6 @@ export const ProductForm: React.FC<ProductFormProps> = ({
               </FormItem>
             )}
           />
-        </div>
-
-        {/* Description */}
-        <FormField
-          control={form.control}
-          name="description"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Description</FormLabel>
-              <FormControl>
-                <Textarea
-                  placeholder={initialData.description || "Enter product description"}
-                  className="min-h-[100px]"
-                  {...field}
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        <div className="grid grid-cols-2 gap-4">
-          <FormField
-            control={form.control}
-            name="price"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Price ($)</FormLabel>
-                <FormControl>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    placeholder={initialData.price?.toString() || "0.00"}
-                    {...field}
-                    onChange={(e) => field.onChange(parseFloat(e.target.value))}
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <FormField
-            control={form.control}
-            name="quantity"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Quantity</FormLabel>
-                <FormControl>
-                  <Input
-                    type="number"
-                    placeholder={initialData.quantity?.toString() || "0"}
-                    {...field}
-                    onChange={(e) => field.onChange(parseInt(e.target.value))}
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        </div>
-
         {/* Image Preview */}
         {(form.watch("image") instanceof File || initialData.productImage) && (
           <div className="mt-4">

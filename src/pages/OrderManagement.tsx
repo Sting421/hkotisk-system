@@ -1,18 +1,20 @@
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card"
-import { useCallback, useEffect, useState } from "react"
-import type { Order, OrderResponse } from "@/types/order"
-import axios from "axios"
-import { 
+import { useState, useMemo } from "react"
+import type { Order } from "@/types/order"
+import { useOrders } from "@/contexts/OrderContext"
+import { Input } from "@/components/ui/input"
+import { Button } from "@/components/ui/button"
+import { Search, X, Loader2, ChevronDown } from "lucide-react"
+import { Badge } from "@/components/ui/badge"
+import { format } from "date-fns"
+import { Navbar } from "@/components/Navbar"
+import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue
+  SelectValue,
 } from "@/components/ui/select"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Badge } from "@/components/ui/badge"
-import { format } from "date-fns"
-import { Navbar } from "@/components/Navbar"
 
 type StatusBadgeProps = {
   status: string;
@@ -37,86 +39,103 @@ const calculateTotal = (products: Order['products']) => {
   return products.reduce((sum, item) => sum + (item.price * item.quantity), 0);
 }
 
-const baseUrl = import.meta.env.VITE_BASE_URL;
-
-const wsURL = import.meta.env.VITE_WS_URL;
-
 export default function OrderManagement() {
-  const [orderData, setOrderData] = useState<Order[]>([]);
-  const [messages, setMessages] = useState<string>("");
-  const [newOrder, setNewOrder] = useState(false);
-  const token = localStorage.getItem("token");
+  const { orders, isLoading, updateOrderStatus } = useOrders();
+  const [updatingOrderId, setUpdatingOrderId] = useState<number | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string>("ALL");
 
-  const fetchOrders = useCallback(async () => {
+  const filteredOrders = useMemo(() => {
+    return orders.filter(order => {
+      const matchesSearch = 
+        order.orderId.toString().toLowerCase().includes(searchQuery.toLowerCase()) ||
+        order.orderBy.toLowerCase().includes(searchQuery.toLowerCase());
+      
+      const matchesStatus = statusFilter === "ALL" || order.orderStatus === statusFilter;
+      
+      return matchesSearch && matchesStatus;
+    });
+  }, [orders, searchQuery, statusFilter]);
+
+  const clearFilters = () => {
+    setSearchQuery("");
+    setStatusFilter("ALL");
+  };
+
+  const handleStatusChange = async (orderId: number, orderStatus: string, email: string) => {
+    setUpdatingOrderId(orderId);
     try {
-      const response = await axios.get<OrderResponse>(`${baseUrl}/staff/orders`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const newOrderData = response.data.orderlist;
-      console.log("Fetching orders......");
-      console.log(newOrderData);
-      setOrderData(newOrderData);
-    } catch (error) {
-      console.error("Error fetching orders:", error);
-    }
-  }, [token]);
-
-  // Initial data fetch
-  useEffect(() => {
-    fetchOrders();
-  }, [fetchOrders]);
-
-  // Handle order updates via WebSocket
-  useEffect(() => {
-    const socket = new WebSocket(`ws://${wsURL}/ws/orders`);
-    
-    socket.onopen = () => {
-      console.log('WebSocket connection established');
-    };
-
-    socket.onmessage = (event) => {
-      console.log('Message received: ', event.data);
-      setMessages(event.data);
-      // Fetch updated orders when we receive a message
-      fetchOrders();
-      setNewOrder(true);
-    };
-
-    socket.onclose = () => {
-      console.log('WebSocket connection closed');
-    };
-
-    socket.onerror = (error) => {
-      console.error('WebSocket error: ', error);
-    };
-
-    return () => {
-      if (socket.readyState === WebSocket.OPEN) {
-        socket.close();
-      }
-    };
-  }, [fetchOrders]);
-
-  const handleStatusChange = async (orderId: number, status: string) => {
-    setNewOrder(false);
-    try {
-      await axios.patch(`${baseUrl}/staff/orders/${orderId}`, 
-        { status },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      // Status will be updated in next fetch
-    } catch (error) {
-      console.error("Error updating order status:", error);
+      await updateOrderStatus(orderId, orderStatus, email);
+    } finally {
+      setUpdatingOrderId(null);
     }
   };
 
   return (
     <div className="container mx-auto py-8">
       
-      <h1 className="text-2xl font-bold mb-6 mt-8">Order Management</h1>
+      <div className="flex flex-col gap-6 mt-8">
+        <h1 className="text-2xl font-bold">Order Management</h1>
+        
+        <div className="flex flex-col md:flex-row gap-4">
+          <div className="relative flex-1">
+            <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search by Order ID or Customer"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-8"
+            />
+          </div>
+          
+          <div className="flex gap-2">
+            <Button 
+              variant={statusFilter === "ALL" ? "default" : "outline"}
+              onClick={() => setStatusFilter("ALL")}
+            >
+              All
+            </Button>
+            <Button 
+              variant={statusFilter === "PENDING" ? "default" : "outline"}
+              onClick={() => setStatusFilter("PENDING")}
+            >
+              Pending
+            </Button>
+            <Button 
+              variant={statusFilter === "PROCESSING" ? "default" : "outline"}
+              onClick={() => setStatusFilter("PROCESSING")}
+            >
+              Processing
+            </Button>
+            <Button 
+              variant={statusFilter === "COMPLETED" ? "default" : "outline"}
+              onClick={() => setStatusFilter("COMPLETED")}
+            >
+              Completed
+            </Button>
+            <Button 
+              variant={statusFilter === "CANCELLED" ? "default" : "outline"}
+              onClick={() => setStatusFilter("CANCELLED")}
+            >
+              Cancelled
+            </Button>
+          </div>
+
+          {(searchQuery || statusFilter !== "ALL") && (
+            <Button variant="outline" onClick={clearFilters} className="gap-2">
+              Clear Filters
+              <X className="h-4 w-4" />
+            </Button>
+          )}
+        </div>
+      </div>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {orderData?.length > 0 ? orderData.map((order) => (
-          <Card key={order.orderId} className={newOrder ? "animate-pulse" : ""}>
+        {isLoading ? (
+          <div className="col-span-full flex justify-center items-center py-8">
+            <Loader2 className="h-8 w-8 animate-spin text-gray-500" />
+          </div>
+        ) : filteredOrders?.length > 0 ? filteredOrders.map((order) => (
+          <Card key={order.orderId}>
             <CardHeader>
               <div className="flex justify-between items-start">
                 <div>
@@ -156,17 +175,24 @@ export default function OrderManagement() {
                 }
               </div>
               <Select
-                defaultValue={order.orderStatus}
-                onValueChange={(value) => handleStatusChange(order.orderId, value)}
+                value={order.orderStatus}
+                onValueChange={(value) => handleStatusChange(order.orderId, value, order.orderBy)}
+                disabled={updatingOrderId === order.orderId}
               >
                 <SelectTrigger className="w-[140px]">
-                  <SelectValue />
+                  <SelectValue>
+                    {updatingOrderId === order.orderId ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      order.orderStatus
+                    )}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="PENDING">PENDING</SelectItem>
-                  <SelectItem value="PROCESSING">PROCESSING</SelectItem>
-                  <SelectItem value="COMPLETED">COMPLETED</SelectItem>
-                  <SelectItem value="CANCELLED">CANCELLED</SelectItem>
+                  <SelectItem value="PENDING">Pending</SelectItem>
+                  <SelectItem value="PROCESSING">Processing</SelectItem>
+                  <SelectItem value="COMPLETED">Completed</SelectItem>
+                  <SelectItem value="CANCELLED">Cancelled</SelectItem>
                 </SelectContent>
               </Select>
             </CardFooter>
@@ -174,7 +200,7 @@ export default function OrderManagement() {
         )) : (
           <Card className="col-span-full">
             <CardContent className="text-center py-6">
-              No orders found
+              {orders.length === 0 ? "No orders found" : "No orders match your search criteria"}
             </CardContent>
           </Card>
         )}
