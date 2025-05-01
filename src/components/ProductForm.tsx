@@ -26,14 +26,15 @@ import { ProductFormData } from "@/contexts/ProductContext";
 
 // Schema for product validation
 const productSchema = z.object({
-  name: z.string().min(2, "Name must be at least 2 characters"),
+  productId: z.number().optional(),
+  productName: z.string().min(2, "Name must be at least 2 characters"),
   description: z.string().min(10, "Description must be at least 10 characters"),
-  prices: z.array(z.number().positive("Price must be positive")),
-  sizes: z.array(z.string().min(1, "Size is required")),
-  quantity: z.array(z.number().int().nonnegative("Quantity must be 0 or more")),
+  price: z.number().positive("Price must be positive"),
+  quantity: z.number().int().nonnegative("Quantity must be 0 or more"),
   category: z.string().min(1, "Category is required"),
-  imageUrl: z.string().optional(),
+  productImage: z.string().optional(),
   image: z.any(),
+  available: z.boolean().optional(),
 });
 
 type ProductFormValues = z.infer<typeof productSchema>;
@@ -58,26 +59,26 @@ export const ProductForm: React.FC<ProductFormProps> = ({
   isSubmitting = false,
 }) => {
   const [isUploading, setIsUploading] = useState(false);
-  const [hasSizes, setHasSizes] = useState(!!initialData.sizes?.length);
 
   const form = useForm<ProductFormValues>({
     resolver: zodResolver(productSchema),
     defaultValues: {
-      name: initialData.name || "",
+      productId: initialData.productId,
+      productName: initialData.productName || "",
       description: initialData.description || "",
-      prices: initialData.prices || [0],
-      sizes: initialData.sizes || [""],
-      quantity: initialData.quantity || [0],
+      price: initialData.price || 0,
+      quantity: initialData.quantity || 0,
       category: initialData.category || "",
-      imageUrl: initialData.imageUrl || "",
+      productImage: initialData.productImage || "",
       image: null,
+      available: initialData.available ?? true,
     },
   });
 
   const handleSubmit = async (values: ProductFormValues) => {
     try {
       setIsUploading(true);
-      let imageUrl = values.imageUrl;
+      let imageUrl = values.productImage;
 
       // Upload image to Cloudinary if it's a File
       if (values.image instanceof File) {
@@ -86,18 +87,15 @@ export const ProductForm: React.FC<ProductFormProps> = ({
       }
 
       const productData: ProductFormData = {
-        name: values.name,
+        productId: initialData.productId,
+        productName: values.productName,
         description: values.description,
-        prices: hasSizes ? values.prices : [values.prices[0]],
-        sizes: hasSizes ? values.sizes : [],
-        quantity: hasSizes ? values.quantity : [values.quantity[0]],
+        price: values.price,
+        quantity: values.quantity,
         category: values.category,
-        imageUrl: imageUrl || "",
+        productImage: imageUrl || "",
+        available: values.available
       };
-
-      if (initialData.id) {
-        productData.id = initialData.id;
-      }
 
       await onSubmit(productData);
     } catch (error) {
@@ -107,31 +105,6 @@ export const ProductForm: React.FC<ProductFormProps> = ({
     }
   };
 
-  const addSizeVariant = () => {
-    const currentPrices = form.getValues("prices");
-    const currentSizes = form.getValues("sizes");
-    const currentQuantities = form.getValues("quantity");
-
-    form.setValue("prices", [...currentPrices, 0]);
-    form.setValue("sizes", [...currentSizes, ""]);
-    form.setValue("quantity", [...currentQuantities, 0]);
-    
-    // Trigger form update to re-render the fields
-    form.trigger();
-  };
-
-  const removeSizeVariant = (index: number) => {
-    const currentPrices = form.getValues("prices");
-    const currentSizes = form.getValues("sizes");
-    const currentQuantities = form.getValues("quantity");
-
-    form.setValue("prices", currentPrices.filter((_, i) => i !== index));
-    form.setValue("sizes", currentSizes.filter((_, i) => i !== index));
-    form.setValue("quantity", currentQuantities.filter((_, i) => i !== index));
-    
-    form.trigger();
-  };
-
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
@@ -139,12 +112,12 @@ export const ProductForm: React.FC<ProductFormProps> = ({
           {/* Name */}
           <FormField
             control={form.control}
-            name="name"
+            name="productName"
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Product Name</FormLabel>
                 <FormControl>
-                  <Input placeholder="Enter product name" {...field} />
+                  <Input placeholder={initialData.productName || "Enter product name"} {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -181,16 +154,23 @@ export const ProductForm: React.FC<ProductFormProps> = ({
           />
 
           {/* Has Sizes Toggle */}
-          <FormItem className="flex flex-row items-center space-x-2">
-            <FormLabel>Has Size Variants?</FormLabel>
-            <FormControl>
-              <input
-                type="checkbox"
-                checked={hasSizes}
-                onChange={(e) => setHasSizes(e.target.checked)}
-              />
-            </FormControl>
-          </FormItem>
+          {/* Available Toggle */}
+          <FormField
+            control={form.control}
+            name="available"
+            render={({ field }) => (
+              <FormItem className="flex flex-row items-center space-x-2">
+                <FormLabel>Available</FormLabel>
+                <FormControl>
+                  <Checkbox
+                    checked={field.value}
+                    onCheckedChange={field.onChange}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
 
           {/* Image Upload */}
           <FormField
@@ -230,7 +210,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
               <FormLabel>Description</FormLabel>
               <FormControl>
                 <Textarea
-                  placeholder="Enter product description"
+                  placeholder={initialData.description || "Enter product description"}
                   className="min-h-[100px]"
                   {...field}
                 />
@@ -240,139 +220,53 @@ export const ProductForm: React.FC<ProductFormProps> = ({
           )}
         />
 
-        {/* Size Variants */}
-        {hasSizes ? (
-          <div className="space-y-4">
-            <div className="flex justify-between items-center">
-              <h3 className="text-lg font-medium">Size Variants</h3>
-              <Button type="button" onClick={addSizeVariant} variant="outline">
-                Add Size Variant
-              </Button>
-            </div>
-            {form.watch("sizes").map((_, index) => (
-              <div key={index} className="grid grid-cols-4 gap-4">
-                <div>
-                  <FormField
-                    control={form.control}
-                    name={`sizes.${index}`}
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Size</FormLabel>
-                        <Select
-                          onValueChange={field.onChange}
-                          defaultValue={field.value}
-                        >
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select a size" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {["Small", "Medium", "Large"].map((size) => (
-                              <SelectItem key={size} value={size}>
-                                {size}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
+        <div className="grid grid-cols-2 gap-4">
+          <FormField
+            control={form.control}
+            name="price"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Price ($)</FormLabel>
+                <FormControl>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    placeholder={initialData.price?.toString() || "0.00"}
+                    {...field}
+                    onChange={(e) => field.onChange(parseFloat(e.target.value))}
                   />
-                </div>
-                <FormField
-                  control={form.control}
-                  name={`prices.${index}`}
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Price ($)</FormLabel>
-                      <FormControl>
-                        <Input
-                          type="number"
-                          step="0.01"
-                          {...field}
-                          onChange={(e) => field.onChange(parseFloat(e.target.value))}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name={`quantity.${index}`}
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Quantity</FormLabel>
-                      <FormControl>
-                        <Input
-                          type="number"
-                          {...field}
-                          onChange={(e) => field.onChange(parseInt(e.target.value))}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <Button 
-                  type="button" 
-                  variant="destructive" 
-                  onClick={() => removeSizeVariant(index)}
-                  className="mt-8"
-                >
-                  Remove
-                </Button>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="grid grid-cols-2 gap-4">
-            <FormField
-              control={form.control}
-              name="prices.0"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Price ($)</FormLabel>
-                  <FormControl>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      {...field}
-                      onChange={(e) => field.onChange(parseFloat(e.target.value))}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="quantity.0"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Quantity</FormLabel>
-                  <FormControl>
-                    <Input
-                      type="number"
-                      {...field}
-                      onChange={(e) => field.onChange(parseInt(e.target.value))}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </div>
-        )}
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="quantity"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Quantity</FormLabel>
+                <FormControl>
+                  <Input
+                    type="number"
+                    placeholder={initialData.quantity?.toString() || "0"}
+                    {...field}
+                    onChange={(e) => field.onChange(parseInt(e.target.value))}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
 
         {/* Image Preview */}
-        {(form.watch("image") instanceof File || initialData.imageUrl) && (
+        {(form.watch("image") instanceof File || initialData.productImage) && (
           <div className="mt-4">
             <p className="text-sm font-medium mb-2">Image Preview</p>
             <div className="aspect-video w-full max-w-md mx-auto overflow-hidden rounded-lg border border-hko-border bg-slate-50">
               <img
-                src={form.watch("image") instanceof File ? URL.createObjectURL(form.watch("image")) : initialData.imageUrl}
+                src={form.watch("image") instanceof File ? URL.createObjectURL(form.watch("image")) : initialData.productImage}
                 alt="Product preview"
                 className="object-contain w-full h-full"
                 onError={(e) => {
@@ -389,7 +283,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
           className="w-full" 
           disabled={isSubmitting || isUploading}
         >
-          {isSubmitting || isUploading ? "Saving..." : initialData.id ? "Update Product" : "Add Product"}
+          {isSubmitting || isUploading ? "Saving..." : initialData.productId ? "Update Product" : "Add Product"}
         </Button>
       </form>
     </Form>

@@ -44,7 +44,7 @@ const AddEditProduct = () => {
       if (isEditMode && id) {
         await updateProduct({
           ...formData,
-          id
+          productId: parseInt(id)
         });
         navigate("/staff/products");
       } else {

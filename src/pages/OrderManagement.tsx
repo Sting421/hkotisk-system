@@ -1,5 +1,5 @@
-import { Card, CardContent } from "@/components/ui/card"
-import { useCallback, useEffect, useRef, useState } from "react"
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card"
+import { useCallback, useEffect, useState } from "react"
 import type { Order, OrderResponse } from "@/types/order"
 import axios from "axios"
 import { 
@@ -114,66 +114,71 @@ export default function OrderManagement() {
     <div className="container mx-auto py-8">
       
       <h1 className="text-2xl font-bold mb-6 mt-8">Order Management</h1>
-      <Card>
-        <CardContent className="p-6">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Order ID</TableHead>
-                <TableHead>Date</TableHead>
-                <TableHead>Total</TableHead>
-                <TableHead>Items</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Action</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {orderData?.length > 0 ? orderData.map((order) => (
-                <TableRow key={order.orderId}>
-                  <TableCell className="font-medium">
-                    #{order.orderId}
-                  </TableCell>
-                  <TableCell>
-                    {format(new Date(order.products[0]?.dateAdded || new Date()), "MMM d, yyyy HH:mm")}
-                  </TableCell>
-                  <TableCell>${calculateTotal(order.products).toFixed(2)}</TableCell>
-                  <TableCell>{order.products.length} items</TableCell>
-                  <TableCell>
-                    <StatusBadge status={order.orderStatus} />
-                  </TableCell>
-                  <TableCell>
-                    <Select
-                      defaultValue={order.orderStatus}
-                      onValueChange={(value) => 
-                        handleStatusChange(
-                          order.orderId, 
-                          value
-                        )
-                      }
-                    >
-                      <SelectTrigger className="w-[140px]">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="PENDING">PENDING</SelectItem>
-                        <SelectItem value="PROCESSING">PROCESSING</SelectItem>
-                        <SelectItem value="COMPLETED">COMPLETED</SelectItem>
-                        <SelectItem value="CANCELLED">CANCELLED</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </TableCell>
-                </TableRow>
-              )) : (
-                <TableRow>
-                  <TableCell colSpan={6} className="text-center py-4">
-                    No orders found
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {orderData?.length > 0 ? orderData.map((order) => (
+          <Card key={order.orderId} className={newOrder ? "animate-pulse" : ""}>
+            <CardHeader>
+              <div className="flex justify-between items-start">
+                <div>
+                  <CardTitle>Order #{order.orderId}</CardTitle>
+                  <CardDescription className="mt-2">{order.orderBy}</CardDescription>
+                </div>
+                <StatusBadge status={order.orderStatus} />
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div>
+                  <h4 className="text-sm font-medium mb-2">Products</h4>
+                  <div className="space-y-2">
+                    {order.products.map((product) => (
+                      <div key={product.cartId} className="flex justify-between text-sm">
+                        <span>{product.productName}</span>
+                        <span>x{product.quantity}</span>
+                      </div>
+                    ))}
+                    {order.products.length === 0 && (
+                      <p className="text-sm text-muted-foreground">No products in this order</p>
+                    )}
+                  </div>
+                </div>
+                <div className="flex justify-between items-center pt-4 border-t">
+                  <span className="font-medium">Total</span>
+                  <span className="font-bold">${calculateTotal(order.products).toFixed(2)}</span>
+                </div>
+              </div>
+            </CardContent>
+            <CardFooter className="flex justify-between">
+              <div className="text-sm text-muted-foreground">
+                {order.products[0]?.dateAdded ? 
+                  format(new Date(order.products[0].dateAdded), "MMM d, yyyy HH:mm") :
+                  "No date available"
+                }
+              </div>
+              <Select
+                defaultValue={order.orderStatus}
+                onValueChange={(value) => handleStatusChange(order.orderId, value)}
+              >
+                <SelectTrigger className="w-[140px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="PENDING">PENDING</SelectItem>
+                  <SelectItem value="PROCESSING">PROCESSING</SelectItem>
+                  <SelectItem value="COMPLETED">COMPLETED</SelectItem>
+                  <SelectItem value="CANCELLED">CANCELLED</SelectItem>
+                </SelectContent>
+              </Select>
+            </CardFooter>
+          </Card>
+        )) : (
+          <Card className="col-span-full">
+            <CardContent className="text-center py-6">
+              No orders found
+            </CardContent>
+          </Card>
+        )}
+      </div>
     </div>
   )
 }

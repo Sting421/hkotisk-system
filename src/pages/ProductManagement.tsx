@@ -43,7 +43,7 @@ const ProductManagement = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("");
   const [showLowStock, setShowLowStock] = useState(false);
-  const [productToDelete, setProductToDelete] = useState<string | null>(null);
+  const [productToDelete, setProductToDelete] = useState<number | null>(null);
 
   // Handle auth protection
   useEffect(() => {
@@ -62,7 +62,7 @@ const ProductManagement = () => {
         const term = searchTerm.toLowerCase();
         filtered = filtered.filter(
           (product) =>
-            product.name.toLowerCase().includes(term) ||
+            product.productName.toLowerCase().includes(term) ||
             product.description.toLowerCase().includes(term)
         );
       }
@@ -77,12 +77,12 @@ const ProductManagement = () => {
       // Filter by low stock
       if (showLowStock) {
         filtered = filtered.filter(
-          (product) => product.stockLevel <= product.lowStockThreshold
+          (product) => product.quantity <= 10
         );
       }
 
       // Sort by name
-      filtered.sort((a, b) => a.name.localeCompare(b.name));
+      filtered.sort((a, b) => a.productName.localeCompare(b.productName));
 
       setFilteredProducts(filtered);
     }
@@ -235,19 +235,19 @@ const ProductManagement = () => {
                     </TableRow>
                   ) : (
                     filteredProducts.map((product) => (
-                      <TableRow key={product.id}>
+                      <TableRow key={product.productId}>
                         <TableCell>
                           <div className="flex items-center">
                             <div className="w-10 h-10 mr-3 rounded overflow-hidden bg-hko-secondary flex-shrink-0">
                               <img
-                                src={product.imageUrl}
-                                alt={product.name}
+                                src={product.productImage}
+                                alt={product.productName}
                                 className="w-full h-full object-cover"
                               />
                             </div>
                             <div>
                               <div className="font-medium text-hko-text-primary">
-                                {product.name}
+                                {product.productName}
                               </div>
                               <div className="text-xs text-hko-text-muted truncate max-w-xs">
                                 {product.description}
@@ -259,34 +259,28 @@ const ProductManagement = () => {
                           <Badge variant="outline">{product.category}</Badge>
                         </TableCell>
                         <TableCell className="text-right font-medium">
-                          {product.prices.length > 1 ? (
-                            <>From ${Math.min(...product.prices).toFixed(2)}</>
-                          ) : (
-                            <>₱{product.prices[0].toFixed(2)}</>
-                          )}
+                          <>₱{product.price.toFixed(2)}</>
                         </TableCell>
                         <TableCell className="text-right">
                           <span
                             className={
-                              product.stockLevel <= 0
+                              product.quantity <= 0
                                 ? "text-red-500 font-medium"
-                                : product.stockLevel <=
-                                  product.lowStockThreshold
+                                : product.quantity <= 10
                                 ? "text-amber-500 font-medium"
                                 : "font-medium"
                             }
                           >
-                            {product.stockLevel}
+                            {product.quantity}
                           </span>
                           <span className="text-xs text-hko-text-muted ml-1">
                             units
                           </span>
                         </TableCell>
                         <TableCell>
-                          {product.stockLevel <= 0 ? (
+                          {product.quantity <= 0 ? (
                             <Badge variant="destructive">Out of Stock</Badge>
-                          ) : product.stockLevel <=
-                            product.lowStockThreshold ? (
+                          ) : product.quantity <= 10 ? (
                             <Badge
                               variant="outline"
                               className="bg-amber-100 text-amber-800 hover:bg-amber-100 border-amber-200"
@@ -308,7 +302,7 @@ const ProductManagement = () => {
                               variant="ghost"
                               size="icon"
                               onClick={() =>
-                                navigate(`/staff/products/edit/${product.id}`)
+                                navigate(`/staff/products/edit/${product.productId}`)
                               }
                             >
                               <Edit className="h-4 w-4" />
@@ -320,7 +314,7 @@ const ProductManagement = () => {
                                   variant="ghost"
                                   size="icon"
                                   className="text-red-500 hover:text-red-600 hover:bg-red-50"
-                                  onClick={() => setProductToDelete(product.id)}
+                                  onClick={() => setProductToDelete(product.productId)}
                                 >
                                   <Trash2 className="h-4 w-4" />
                                   <span className="sr-only">Delete</span>
@@ -334,7 +328,7 @@ const ProductManagement = () => {
                                   <AlertDialogDescription>
                                     This will permanently delete{" "}
                                     <span className="font-semibold">
-                                      {product.name}
+                                      {product.productName}
                                     </span>
                                     . This action cannot be undone.
                                   </AlertDialogDescription>

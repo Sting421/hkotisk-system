@@ -21,15 +21,15 @@ export const ProductCard: React.FC<ProductCardProps> = ({
 }) => {
   const { isAuthenticated, user } = useAuth();
   const isStaff = user?.role === 'staff' || user?.role === 'admin';
-  const isLowStock = product.stockLevel <= product.lowStockThreshold;
-  const isOutOfStock = product.stockLevel <= 0;
+  const isLowStock = product.quantity <= 10;
+  const isOutOfStock = product.quantity <= 0;
 
   return (
     <Card className={`overflow-hidden transition-all duration-300 hover:shadow-elevation-2 ${className}`}>
       <div className="relative aspect-square overflow-hidden">
         <img
-          src={product.imageUrl}
-          alt={product.name}
+          src={product.productImage}
+          alt={product.productName}
           className="object-cover w-full h-full transition-transform duration-500 hover:scale-105"
           loading="lazy"
         />
@@ -51,7 +51,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
       <CardContent className="pt-4">
         <div className="flex justify-between items-start mb-2">
           <h3 className="font-medium text-lg leading-tight text-hko-text-primary">
-            {product.name}
+            {product.productName}
           </h3>
           <Badge variant="outline" className="text-xs font-normal">
             {product.category}
@@ -62,22 +62,18 @@ export const ProductCard: React.FC<ProductCardProps> = ({
         </p>
         <div className="flex justify-between items-center">
           <p className="font-semibold text-hko-text-primary">
-            {product.prices.length > 1 ? (
-              <>From ${Math.min(...product.prices).toFixed(2)}</>
-            ) : (
-              <>${product.prices[0].toFixed(2)}</>
-            )}
+            ${product.price.toFixed(2)}
           </p>
           {isStaff && (
             <p className="text-xs text-hko-text-muted">
-              Stock: {product.stockLevel} units
+              Stock: {product.quantity} units
             </p>
           )}
         </div>
       </CardContent>
       <CardFooter className="pt-0">
         {isStaff ? (
-          <Link to={`/staff/products/edit/${product.id}`} className="w-full">
+          <Link to={`/staff/products/edit/${product.productId}`} className="w-full">
             <Button variant="outline" className="w-full">
               <Edit className="h-4 w-4 mr-2" />
               Edit Product

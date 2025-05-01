@@ -2,62 +2,50 @@ import React, { createContext, useContext, useState, useEffect } from "react";
 import { toast } from "sonner";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
-
 const baseUrl = import.meta.env.VITE_BASE_URL;
 
 export type ProductFormData = {
-  id?: string;
-  name: string;
+  productId?: number;
+  productName: string;
   description: string;
-  prices: number[];
-  sizes: string[];
-  quantity: number[];
+  price: number;
+  quantity: number;
   category: string;
-  imageUrl: string;
+  productImage: string;
+  available?: boolean;
 };
 
 export type Product = {
-  id: string;
-  name: string;
+  productId: number;
+  productName: string;
   description: string;
-  prices: number[];
-  sizes: string[];
-  quantity: number[];
+  price: number;
+  quantity: number;
   category: string;
-  imageUrl: string;
-  createdAt?: string;
-  updatedAt?: string;
-  stockLevel: number;
-  lowStockThreshold: number;
+  productImage: string;
+  available: boolean;
 };
 
 type ApiProduct = {
   productId: number;
   productName: string;
   description: string;
-  prices: number[];
-  sizes: string[];
-  quantity: number[];
+  price: number;
+  quantity: number;
   category: string;
   productImage: string;
-  createdAt?: string;
-  updatedAt?: string;
+  available: boolean;
 };
 
-// Transform API response to match our Product type
 const transformApiResponse = (data: ApiProduct): Product => ({
-  id: data.productId?.toString() || '',
-  name: data.productName || '',
-  description: data.description || '',
-  prices: data.prices || [],
-  sizes: data.sizes || [],
-  quantity: data.quantity || [],
-  category: data.category || '',
-  imageUrl: data.productImage || '',
-  createdAt: data.createdAt,
-  updatedAt: data.updatedAt,
-  stockLevel: data.quantity.reduce((sum, qty) => sum + qty, 0),
-  lowStockThreshold: 10 // Default threshold, can be adjusted as needed
+  productId: data.productId,
+  productName: data.productName,
+  description: data.description,
+  price: data.price,
+  quantity: data.quantity,
+  category: data.category,
+  productImage: data.productImage,
+  available: data.available
 });
 
 type ProductContextType = {
@@ -65,9 +53,9 @@ type ProductContextType = {
   isLoading: boolean;
   addProduct: (product: ProductFormData) => Promise<void>;
   updateProduct: (productData: ProductFormData) => Promise<void>;
-  deleteProduct: (id: string) => Promise<void>;
+  deleteProduct: (productId: number) => Promise<void>;
   getLowStockProducts: () => Product[];
-  getProductById: (id: string) => Product | undefined;
+  getProductById: (productId: string) => Product | undefined;
   filterProducts: (
     filters: { 
       category?: string; 
@@ -87,32 +75,26 @@ export const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   const navigate = useNavigate();
 
-  const fetchProducts = async (isStaffView = false) => {
+  const fetchProducts = async () => {
     setIsLoading(true);
-    try {
-      // For staff view, include authentication
-      const headers: Record<string, string> = {
-        'Content-Type': 'application/json',
-      };
-      
-      if (isStaffView) {
-        const authToken = localStorage.getItem('token');
-        if (!authToken) {
-          navigate('/staff/login');
-          return;
-        }
-        headers.Authorization = `Bearer ${authToken}`;
-      }
+    const authToken = localStorage.getItem('token');
+    if (!authToken) {
+      navigate('/staff/login');
+      return;
+    }
 
-      const response = await axios.get(`${baseUrl}/user/product`, { headers });
-      const productList = response?.data?.oblist || response?.data || [];
+    try {
+      const endpoint = `${baseUrl}/user/product`;
+      const response = await axios.get(endpoint, {
+        headers: {
+          Authorization: `Bearer ${authToken}`,
+          'Content-Type': 'application/json',
+        },
+      });
+      const productList = response?.data?.oblist ?? [];
       setProducts(productList.map(transformApiResponse));
     } catch (error) {
       console.error('Error fetching products:', error);
-      if (error.response?.status === 403 && isStaffView) {
-        localStorage.removeItem('token');
-        navigate('/staff/login');
-      }
       toast.error("Failed to load products. Please try again later.");
     } finally {
       setIsLoading(false);
@@ -120,9 +102,8 @@ export const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ child
   };
 
   useEffect(() => {
-    const role = localStorage.getItem('role');
-    fetchProducts(role === 'staff');
-  }, [navigate]);
+    fetchProducts();
+  }, []);
 
   const addProduct = async (product: ProductFormData) => {
     const authToken = localStorage.getItem('token');
@@ -132,25 +113,17 @@ export const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }
 
     try {
-      // Transform the data to match API expectations
-      const apiProduct = {
-        productName: product.name,
-        description: product.description,
-        prices: product.prices,
-        sizes: product.sizes,
-        quantity: product.quantity,
-        category: product.category,
-        productImage: product.imageUrl
-      };
-      
-      await axios.post(`${baseUrl}/staff/product`, apiProduct, {
+      await axios.post(`${baseUrl}/staff/product`, {
+        ...product,
+        available: product.available ?? true
+      }, {
         headers: {
           Authorization: `Bearer ${authToken}`,
           'Content-Type': 'application/json',
         },
       });
-      fetchProducts(true);
-      toast.success(`Product "${product.name}" added successfully`);
+      fetchProducts();
+      toast.success(`Product "${product.productName}" added successfully`);
     } catch (error) {
       console.error('Error adding product:', error);
       if (error?.response?.status === 403) {
@@ -170,19 +143,7 @@ export const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }
 
     try {
-      // Transform the data to match API expectations
-      const apiProduct = {
-        productId: parseInt(productData.id || '0'),
-        productName: productData.name,
-        description: productData.description,
-        prices: productData.prices,
-        sizes: productData.sizes,
-        quantity: productData.quantity,
-        category: productData.category,
-        productImage: productData.imageUrl
-      };
-
-      const response = await axios.put(`${baseUrl}/staff/product/${apiProduct.productId }`, apiProduct, {
+      const response = await axios.put(`${baseUrl}/staff/product/${productData.productId}`, productData, {
         headers: {
           Authorization: `Bearer ${authToken}`,
           'Content-Type': 'application/json',
@@ -190,7 +151,7 @@ export const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ child
       });
       
       if (response.status === 200) {
-        await fetchProducts(true);
+        await fetchProducts();
         toast.success("Product updated successfully");
         navigate('/staff/products');
       }
@@ -205,7 +166,7 @@ export const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }
   };
 
-  const deleteProduct = async (id: string) => {
+  const deleteProduct = async (productId: number) => {
     const authToken = localStorage.getItem('token');
     if (!authToken) {
       navigate('/staff/login');
@@ -213,16 +174,16 @@ export const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }
 
     try {
-      await axios.delete(`${baseUrl}/staff/product`, {
+      await axios.delete(`${baseUrl}/staff/product?productId=${productId}`, {
         headers: {
           Authorization: `Bearer ${authToken}`,
           'Content-Type': 'application/json',
         },
         params: {
-          productId: id
+          productId: productId
         }
       });
-      fetchProducts(true);
+      fetchProducts();
       toast.success("Product deleted successfully");
     } catch (error) {
       console.error('Error deleting product:', error);
@@ -235,11 +196,11 @@ export const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ child
   };
 
   const getLowStockProducts = () => {
-    return products.filter(product => product.stockLevel <= product.lowStockThreshold);
+    return products.filter(product => product.quantity <= 10); // Using fixed threshold of 10
   };
 
-  const getProductById = (id: string) => {
-    return products.find(product => product.id === id);
+  const getProductById = (productId: string) => {
+    return products.find(product => product.productId.toString() === productId);
   };
 
   const filterProducts = (filters: { category?: string; search?: string; minPrice?: number; maxPrice?: number; inStock?: boolean }) => {
@@ -252,7 +213,7 @@ export const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ child
       // Filter by search term
       if (filters.search) {
         const searchTerm = filters.search.toLowerCase();
-        const nameMatch = product.name.toLowerCase().includes(searchTerm);
+        const nameMatch = product.productName.toLowerCase().includes(searchTerm);
         const descriptionMatch = product.description.toLowerCase().includes(searchTerm);
         if (!nameMatch && !descriptionMatch) {
           return false;
@@ -260,16 +221,15 @@ export const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ child
       }
       
       // Filter by price range
-      const minProductPrice = Math.min(...product.prices);
-      if (filters.minPrice !== undefined && minProductPrice < filters.minPrice) {
+      if (filters.minPrice !== undefined && product.price < filters.minPrice) {
         return false;
       }
-      if (filters.maxPrice !== undefined && minProductPrice > filters.maxPrice) {
+      if (filters.maxPrice !== undefined && product.price > filters.maxPrice) {
         return false;
       }
       
       // Filter by stock availability
-      if (filters.inStock !== undefined && filters.inStock && product.stockLevel <= 0) {
+      if (filters.inStock !== undefined && filters.inStock && (!product.available || product.quantity <= 0)) {
         return false;
       }
       
